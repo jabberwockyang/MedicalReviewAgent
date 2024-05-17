@@ -13,6 +13,7 @@ QWEN 1.5 7B CHAT
 - 
 ### RAG DATASET ESTABLISHMENT
 - HUIXIANGDOU の 盗用
+    - chunk size [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5)
 - 嵌入聚类 自动打标 可视化
 ### 灵感提供
 - input
