@@ -1,0 +1,3 @@
+Schematic drawing of the basic "tissue control unit," which consists of monocyte-derived cells (marked M in the figure), vascular pericytes (P), and autonomic innervation (AI, dashed arrow), and the involvement of other components of the tissue control system (solid arrows).
+
+Cytokine synthesis and apoptosis by intestinal intraepithelial lymphocytes: signaling of high density alpha beta T cell receptor+ and gamma delta T cell receptor+ T cells via T cell receptor-CD3 complex results in interferon-gamma and interleukin-5 production, while low density T cells undergo DNA fragmentation
