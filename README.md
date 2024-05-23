@@ -17,7 +17,9 @@ QWEN 1.5 7B CHAT
 - programe:
     - [HUIXIANGDOU](https://github.com/InternLM/HuixiangDou) の 改写 ✅
         - chunk size 摸索 [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5)  ✅
-    - 嵌入聚类 自动打标tag 可视化 ✅
+    - 嵌入聚类✅
+    - 自动打标tag✅
+    - 可视化 
         - 可视化选项: 热图 词云
 ### 灵感提供
 - user: click button
