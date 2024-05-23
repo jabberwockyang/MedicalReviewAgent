@@ -36,3 +36,4 @@ QWEN 1.5 7B CHAT
         - 对比总结+带ref 这一步可能要oneshotprompt 或者finetuning（考虑后期接入外部API功能，暂不考虑进行微调）
     - output：
         - 带ref文本
+### gradio 前端 ✅
