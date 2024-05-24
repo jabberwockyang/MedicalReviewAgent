@@ -1,4 +1,5 @@
 # MedicalReviewAgent 不想看文献
+基于一个医学在读博士非常朴素的愿望
 
 ## BASE MODEL
 QWEN 1.5 7B CHAT
@@ -49,4 +50,6 @@ QWEN 1.5 7B CHAT
         - 对比总结+带ref 这一步可能要oneshotprompt 或者finetuning（考虑后期接入外部API功能，暂不考虑进行微调）
     - output：
         - 带ref文本
+### make kg  #TODO
+- 这个优先级比较低，先把前面的做出来再说
 ### gradio 前端 ✅
