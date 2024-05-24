@@ -4,24 +4,37 @@
 QWEN 1.5 7B CHAT
 
 ## WORKFLOW 
-### keywords generation optional
-- user: a natural language query
-- llm: natural language query to a set of parameters
-- 页面展示关键词多选项，用户自己选择
+### keywords generation #TODO
+- userinput:
+    - text: a natural language query
+- llm:
+    - SFT may be needed 
+    - natural language query to a set of parameters
+
 ### RETRIEVAL AND CLEAN ✅
-- user: a list of keywords
+- userinput:
+    - text: a list of keywords
 - programe:
-    - get associative pubmed article thru [api](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=PMCID) ✅ 
+    - get associative pubmed article thru PMC [API](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=PMCID) ✅ 
     - clean xml to text ✅
 ### RAG DATASET ESTABLISHMENT
+- userinput:
+    - slider: chunk size (default 1024)  [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5)   ✅
+    - slider: N-cluster for clustering (default 摸索中)
 - programe:
     - [HUIXIANGDOU](https://github.com/InternLM/HuixiangDou) の 改写 ✅
-        - chunk size 摸索 [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5)  ✅
-    - 嵌入聚类✅
-        - ncluster 摸索中
-    - 自动打标tag✅     
-### 灵感提供
-- user: click button
+        - 添加嵌入聚类代码 ✅
+        - 添加llm自动标注聚类代码 ✅
+        - chunk size 可调 ✅
+    - output: faiss 向量储存文件+聚类结果
+### 数据库概况
+- userinput: 
+    - slider: 标注数量（range: 0- 全量）优先标注大的cluster 
+- llm:
+    - 标注并储存
+    - 跳过重复标注 
+### 给我点灵感
+- userinput: click button
 - llm:
     - prompt：针对query的研究目的，基于tags，提出子问题：
     - output：
