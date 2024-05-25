@@ -28,19 +28,20 @@ QWEN 1.5 7B CHAT
         - 添加llm自动标注聚类代码 ✅
         - chunk size 可调 ✅
     - output: faiss 向量储存文件+聚类结果
-### 数据库概况
+### 标注聚类 ✅
 - userinput: 
-    - slider: 标注数量（range: 0- 全量）优先标注大的cluster 
+    - slider: 标注数量（range: 0- 全量） ✅
+    - 优先标注大的cluster 
 - llm:
-    - 标注并储存
+    - 标注并储存 ✅
     - 跳过重复标注 
-### 给我点灵感
-- userinput: click button
+### 给我点灵感 ✅
+- userinput: click button + previous output ✅
 - llm:
-    - prompt：针对query的研究目的，基于tags，提出子问题：
+    - prompt：针对query的研究目的，基于tags，提出子问题： ✅
     - output：
-        - a list of child query（子问题）以及对应一个或多个的tag
-    - temperature set to 1, refresh is available
+        - a list of child query（子问题）以及对应一个或多个的tag ✅
+    - temperature set to 1, refresh is available 
 ### writing
 - user: 输入子问题 以及一个或多个的tag，（可从灵感提供模块一键导入）
 - programe: 通过打标限制提取相应的chunks实例化retreiver
