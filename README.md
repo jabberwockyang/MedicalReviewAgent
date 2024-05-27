@@ -39,7 +39,7 @@
 6. 基于LLM的综述生成
    - 输入可以是用户自己的问题，也可以参考之前llm生成的子问题
    - 为了比较同一个科学问题的不同来源的观点，修改了一部分茴香豆的Retriever逻辑
-      - 仅用base_retreiver 返回topk =10的分段
+      - 返回topk =10的分段
       - 由于大模型注意力在头尾两端较靠谱，用langchain_community.document_transformers.LongContextReorder 将相关性较高的文本分布在头尾两端
      
 7. gradio前端
