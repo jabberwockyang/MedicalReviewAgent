@@ -1,56 +1,56 @@
 # MedicalReviewAgent 不想看文献
-基于一个医学在读博士非常朴素的愿望
+## 项目概述
 
-## BASE MODEL
-QWEN 1.5 7B CHAT
 
-## WORKFLOW 
-### keywords generation #TODO
-- userinput:
-    - text: a natural language query
-- llm:
-    - SFT may be needed 
-    - natural language query to a set of parameters
+## 流程图
+基本上就是在茴香豆上面改的 这里主要讲解使用流程 架构和茴香豆一样
+### 文献库和知识库构建
+<img width="663" alt="image" src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/bb61d5ed-1e7f-4855-b771-2961a81d28c8">
 
-### RETRIEVAL AND CLEAN ✅
-- userinput:
-    - text: a list of keywords
-- programe:
-    - get associative pubmed article thru PMC [API](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=PMCID) ✅ 
-    - clean xml to text ✅
-### RAG DATASET ESTABLISHMENT
-- userinput:
-    - slider: chunk size (default 1024)  [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5)   ✅
-    - slider: N-cluster for clustering (default 摸索中)
-- programe:
-    - [HUIXIANGDOU](https://github.com/InternLM/HuixiangDou) の 改写 ✅
-        - 添加嵌入聚类代码 ✅
-        - 添加llm自动标注聚类代码 ✅
-        - chunk size 可调 ✅
-    - output: faiss 向量储存文件+聚类结果
-### 标注聚类 ✅
-- userinput: 
-    - slider: 标注数量（range: 0- 全量） ✅
-    - 优先标注大的cluster 
-- llm:
-    - 标注并储存 ✅
-    - 跳过重复标注 
-### 给我点灵感 ✅
-- userinput: click button + previous output ✅
-- llm:
-    - prompt：针对query的研究目的，基于tags，提出子问题： ✅
-    - output：
-        - a list of child query（子问题）以及对应一个或多个的tag ✅
-    - temperature set to 1, refresh is available 
-### writing
-- user: 输入子问题 以及一个或多个的tag，（可从灵感提供模块一键导入）
-- programe: 通过打标限制提取相应的chunks实例化retreiver
-- llm：
-    - prompt:
-        - 逐chunk判断是否回答问题（需要做实验明确必要性）
-        - 对比总结+带ref 这一步可能要oneshotprompt 或者finetuning（考虑后期接入外部API功能，暂不考虑进行微调）
-    - output：
-        - 带ref文本
-### make kg  #TODO
-- 这个优先级比较低，先把前面的做出来再说
-### gradio 前端 ✅
+### 人机合作写文章
+<img width="847" alt="image" src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/fc394d8b-1668-4349-9adc-1c4c0a7e0a8b">
+
+
+## 技术路线
+目前的基础模型是qwen1.5 7b chat
+基于茴香豆加了几个功能
+1. 文献搜索和文本清洗
+- 用户键入文献检索关键词，自动从PubMed公开数据库上搜索并下载文献全文
+- xml到txt的文本清洗，去除reference 等无关信息
+2. chunk size可调
+-  default 1024 [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5) 
+3. 基于Faiss库的嵌入kmeans聚类,k可调
+4. 基于LLM的聚类内容标注
+   - 为节省算力，可以抽样标注
+   - 标注后本地储存避免重复标注
+5. 基于LLM的子问题生成
+   - 聚类标注内容作为context，生成对应的子问题
+6. 基于LLM的综述生成
+   - 输入可以是用户自己的问题，也可以参考之前llm生成的子问题
+7. gradio前端
+
+## TODO 
+1. 自然语言到文献搜索参数的functional call功能
+   - 比如：
+       - 输入：帮我搜索近五年特应性皮炎相关的孟德尔随机化文章，不要综述
+       - 输出：
+         ```json
+            {"keywords":["atopic dermatitis","mendelian randomisation"],
+             "min-year":2019,
+             "max-year":2024,
+             "include-type":None,
+             "exclude-type":"review"
+             }
+         ```
+2. PDF处理功能，打算用RAGflow里面的deepdoc包
+3. 摸索适用于不同需求的chunk size和 k值
+   - 比方说用来找某个实验方法用多大浓度的试剂，和总结某研究领域的前沿进展所用到的chunksize应该是不一样的吧🤔
+   - 后者的大小其实取决于前者叭🤔
+5. 基于文献库生成知识图谱
+   - 这就是个饼，80%的可能不会做
+     
+## 感谢
+1. [茴香豆](https://github.com/InternLM/HuixiangDou)
+2. [E-utilities](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=PMCID)
+3. [Ragflow](https://github.com/infiniflow/ragflow/blob/main/README_zh.md)
+4. 
