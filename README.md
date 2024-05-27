@@ -1,7 +1,7 @@
 # MedicalReviewAgent 不想看文献
 ## 项目概述
 - 整一个帮我写综述的Agent，希望他能完成文献内容的收集，文本分类和总结，科学事实对比，撰写综述等功能
-- 目前用到了RAG, functional call等技术
+- 计划用到RAG, functional call等技术
 - 还在不断摸索中，欢迎大佬指导！
 
 ## 流程图
