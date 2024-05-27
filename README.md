@@ -16,11 +16,13 @@
 目前的基础模型是qwen1.5 7b chat
 基于茴香豆加了几个功能
 1. 文献搜索和文本清洗
-- 用户键入文献检索关键词，自动从PubMed公开数据库上搜索并下载文献全文
-- xml到txt的文本清洗，去除reference 等无关信息
+   - 用户键入文献检索关键词，自动从PubMed公开数据库上搜索并下载文献全文
+   - xml到txt的文本清洗，去除reference 等无关信息
 2. chunk size可调
--  default 1024 [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5) 
-3. 基于Faiss库的嵌入kmeans聚类,k可调
+   -  default 1024 [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5) 
+3. 嵌入kmeans聚类
+   - 基于Faiss库
+   - k可调
 4. 基于LLM的聚类内容标注
    - 为节省算力，可以抽样标注
    - 标注后本地储存避免重复标注
