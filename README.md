@@ -40,7 +40,7 @@
    - 输入可以是用户自己的问题，也可以参考之前llm生成的子问题
    - 为了比较同一个科学问题的不同来源的观点，修改了一部分茴香豆的Retriever逻辑
       - 返回topk =10的分段
-      - 由于大模型注意力在头尾两端较靠谱，用langchain_community.document_transformers.LongContextReorder 将相关性较高的文本分布在头尾两端
+      - 由于LLM捞针能力在头尾两端较靠谱，用langchain_community.document_transformers.LongContextReorder 将相关性较高的文本分布在头尾两端
      
 7. gradio前端
    目前是酱的
