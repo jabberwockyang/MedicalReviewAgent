@@ -7,7 +7,8 @@
 ## 流程图
 基本上就是在上海AIlab的茴香豆上面改的 这里主要讲解使用流程 架构和茴香豆一样
 ### 文献库和知识库构建
-<img width="663" alt="image" src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/bb61d5ed-1e7f-4855-b771-2961a81d28c8">
+![image](https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/81d4397a-0a15-46c1-8416-eaa27b4d1182)
+
 
 ### 人机合作写文章
 <img width="847" alt="image" src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/fc394d8b-1668-4349-9adc-1c4c0a7e0a8b">
