@@ -4,6 +4,8 @@ import argparse
 import datetime
 import re
 import time
+import os
+import json
 
 import pytoml
 from loguru import logger
@@ -53,6 +55,9 @@ class Worker:
 
         llm_config = self.config['llm']
         self.context_max_length = llm_config['server']['local_llm_max_text_length']
+        self.logsavepath = os.path.join(self.config['feature_store']['work_dir'],self.config['worker']['save_path'])
+        if not os.path.exists(self.logsavepath.replace(self.logsavepath.split('/')[-1],'')):
+            os.makedirs(self.logsavepath.replace(self.logsavepath.split('/')[-1],''))
 
         if llm_config['enable_remote']:
             self.context_max_length = llm_config['server'][
@@ -68,8 +73,10 @@ class Worker:
             self.SECURITY_TEMAPLTE = '判断以下句子是否涉及政治、辱骂、色情、恐暴、宗教、网络暴力、种族歧视等违禁内容，结果用 0～10 表示，不要解释直接给出得分。判断标准：涉其中任一问题直接得 10 分；完全不涉及得 0 分。直接给得分不要解释：“{}”'  # noqa E501
             self.PERPLESITY_TEMPLATE = '“question:{} answer:{}”\n阅读以上对话，answer 是否在表达自己不知道，回答越全面得分越少，用0～10表示，不要解释直接给出得分。\n判断标准：准确回答问题得 0 分；答案详尽得 1 分；知道部分答案但有不确定信息得 8 分；知道小部分答案但推荐求助其他人得 9 分；不知道任何答案直接推荐求助别人得 10 分。直接打分不要解释。'  # noqa E501
             self.SUMMARIZE_TEMPLATE = '{} \n 仔细阅读以上内容，总结得简短有力点'  # noqa E501
-            # self.GENERATE_TEMPLATE = '材料：“{}”\n 问题：“{}” \n 请仔细阅读参考材料回答问题，材料可能和问题无关。如果材料和问题无关，尝试用你自己的理解来回答问题。如果无法确定答案，直接回答不知道。'  # noqa E501
+            self.GENERATE_TEMPLATE = '材料：“{}”\n 问题：“{}” \n 请仔细阅读参考材料回答问题，材料可能和问题无关。如果材料和问题无关，尝试用你自己的理解来回答问题。如果无法确定答案，直接回答不知道。'  # noqa E501
             self.GENERATE_TEMPLATE = '材料：“{}”\n 问题：“{}” \n 请仔细阅读参考材料回答问题。'  # noqa E501
+            self.ANNOTATE_CLUSTER = '这是关于{}的不同论文的分块句子，它们通过相似性进行了聚类，以下是其中一个聚类的10个样本：“{}”\n 请用一句话标注这个聚类。'  # noqa E501
+            self.INSPIRATION_TEMPLATE = '以下是一些有关{0}的文章内容的总结 {1}，请提出一个关于{0}的综述子问题，一个问题即可。'   
         else:
             self.TOPIC_TEMPLATE = 'Tell me the theme of this sentence, just state the theme without explanation: "{}"'  # noqa E501
             self.SCORING_QUESTION_TEMPLTE = '"{}"\nPlease read the content above carefully and judge whether the sentence is a thematic question. Rate it on a scale of 0-10. Only provide the score, no explanation.\nThe criteria are as follows: a sentence gets 10 points if it has a subject, predicate, object and is a question; points are deducted for missing subject, predicate or object; declarative sentences get 0 points; sentences that are not questions also get 0 points. Just give the score, no explanation.'  # noqa E501
@@ -79,7 +86,9 @@ class Worker:
             self.PERPLESITY_TEMPLATE = 'Question: {} Answer: {}\nRead the dialogue above, does the answer express that they don\'t know? The more comprehensive the answer, the lower the score. Rate it on a scale of 0-10, no explanation, just give the score.\nThe scoring standard is as follows: an accurate answer to the question gets 0 points; a detailed answer gets 1 point; knowing some answers but having uncertain information gets 8 points; knowing a small part of the answer but recommends seeking help from others gets 9 points; not knowing any of the answers and directly recommending asking others for help gets 10 points. Just give the score, no explanation.'  # noqa E501
             self.SUMMARIZE_TEMPLATE = '"{}" \n Read the content above carefully, summarize it in a short and powerful way.'  # noqa E501
             self.GENERATE_TEMPLATE = 'Background Information: "{}"\n Question: "{}"\n Please read the reference material carefully and answer the question.'  # noqa E501
-
+            self.ANNOTATE_CLUSTER = 'these are chunklized sentences from different papers about{}, they are clustered by similarity, the following is 10 samples from one of the cluster: "{}"\n Please tag the cluster in one breif sentence.' 
+            self.INSPIRATION_TEMPLATE = 'Given the following summary of the articles content about {0} {1}, give some idea or sub-questions of the review about {0}, one question is sufficient.'  # noqa E501
+    
     def single_judge(self, prompt, tracker, throttle: int, default: int):
         """Generates a score based on the prompt, and then compares it to
         threshold.
@@ -161,9 +170,9 @@ class Worker:
             return ErrorCode.NOT_A_QUESTION, response, references
 
         reborn_code = ErrorCode.SUCCESS
-        tracker = QueryTracker(self.config['worker']['save_path'])
+        tracker = QueryTracker(self.logsavepath)
         tracker.log('input', [query, history, groupname])
-
+        
         if not self.single_judge(
                 prompt=self.SCORING_QUESTION_TEMPLTE.format(query),
                 tracker=tracker,
@@ -177,74 +186,85 @@ class Worker:
         if len(topic) <= 2:
             return ErrorCode.NO_TOPIC, response, references
 
-        chunk, db_context, references = self.retriever.query(
+        # chunk, db_context, references = self.retriever.query(
+        #     topic,
+        #     context_max_length=self.context_max_length -
+        #     2 * len(self.GENERATE_TEMPLATE))
+        chunks, references = self.retriever.query(
             topic,
-            context_max_length=self.context_max_length -
-            2 * len(self.GENERATE_TEMPLATE))
-        if db_context is None:
-            tracker.log('feature store reject')
-            return ErrorCode.UNRELATED, response, references
-
-        if self.single_judge(self.SCORING_RELAVANCE_TEMPLATE.format(
-                query, chunk),
-                             tracker=tracker,
-                             throttle=5,
-                             default=10):
+            context_max_length=self.context_max_length - 2 * len(self.GENERATE_TEMPLATE), 
+            tracker=tracker)
+        
+        # if db_context is None:
+        #     tracker.log('feature store reject')
+        #     return ErrorCode.UNRELATED, response, references
+        context = ''
+        refs = []
+        for chunk,ref in zip(chunks,references):
+            if self.single_judge(self.SCORING_RELAVANCE_TEMPLATE.format(query, chunk),
+                                tracker=tracker,
+                                throttle=5,
+                                default=10):
+                context += chunk
+                context += '\n\n'
+                refs.append(ref)
+        refs = list(set(refs))
+        if len(context) > 0:
             prompt, history = self.llm.build_prompt(
                 instruction=query,
-                context=db_context,
+                context=context,
                 history_pair=history,
                 template=self.GENERATE_TEMPLATE)
             response = self.llm.generate_response(prompt=prompt,
-                                                  history=history,
-                                                  backend='local')
+                                                    history=history,
+                                                    backend='local')
             tracker.log('feature store doc', [chunk, response])
-            return ErrorCode.SUCCESS, response, references
+            return ErrorCode.SUCCESS, response, refs
 
-        try:
-            references = []
-            web_context = ''
-            web_search = WebSearch(config_path=self.config_path)
+        # try:
+        #     references = []
+        #     web_context = ''
+        #     web_search = WebSearch(config_path=self.config_path)
 
-            articles, error = web_search.get(query=topic, max_article=2)
-            if error is not None:
-                return ErrorCode.SEARCH_FAIL, response, references
+        #     articles, error = web_search.get(query=topic, max_article=2)
+        #     if error is not None:
+        #         return ErrorCode.SEARCH_FAIL, response, references
 
-            tracker.log('search returned')
-            web_context_max_length = self.context_max_length - 2 * len(
-                self.SCORING_RELAVANCE_TEMPLATE)
+        #     tracker.log('search returned')
+        #     web_context_max_length = self.context_max_length - 2 * len(
+        #         self.SCORING_RELAVANCE_TEMPLATE)
 
-            for article in articles:
-                if len(article) > 0:
-                    article.cut(0, web_context_max_length)
+        #     for article in articles:
+        #         if len(article) > 0:
+        #             article.cut(0, web_context_max_length)
 
-                    if self.single_judge(
-                            self.SCORING_RELAVANCE_TEMPLATE.format(
-                                query, article.content),
-                            tracker=tracker,
-                            throttle=5,
-                            default=10):
-                        web_context += '\n\n'
-                        web_context += article.content
-                        references.append(article.source)
+        #             if self.single_judge(
+        #                     self.SCORING_RELAVANCE_TEMPLATE.format(
+        #                         query, article.content),
+        #                     tracker=tracker,
+        #                     throttle=5,
+        #                     default=10):
+        #                 web_context += '\n\n'
+        #                 web_context += article.content
+        #                 references.append(article.source)
 
-            web_context = web_context[0:web_context_max_length]
-            web_context = web_context.strip()
+        #     web_context = web_context[0:web_context_max_length]
+        #     web_context = web_context.strip()
 
-            if len(web_context) > 0:
-                prompt, history = self.llm.build_prompt(
-                    instruction=query,
-                    context=web_context,
-                    history_pair=history,
-                    template=self.GENERATE_TEMPLATE)
-                response = self.llm.generate_response(prompt=prompt,
-                                                      history=history)
-            else:
-                reborn_code = ErrorCode.NO_SEARCH_RESULT
+        #     if len(web_context) > 0:
+        #         prompt, history = self.llm.build_prompt(
+        #             instruction=query,
+        #             context=web_context,
+        #             history_pair=history,
+        #             template=self.GENERATE_TEMPLATE)
+        #         response = self.llm.generate_response(prompt=prompt,
+        #                                               history=history)
+        #     else:
+        #         reborn_code = ErrorCode.NO_SEARCH_RESULT
 
-            tracker.log('web response', [web_context, response, reborn_code])
-        except Exception as e:
-            logger.error(e)
+        #     tracker.log('web response', [web_context, response, reborn_code])
+        # except Exception as e:
+        #     logger.error(e)
 
         if response is not None and len(response) > 0:
             prompt = self.PERPLESITY_TEMPLATE.format(query, response)
@@ -254,49 +274,110 @@ class Worker:
                                  default=0):
                 reborn_code = ErrorCode.BAD_ANSWER
 
-        if self.config['worker']['enable_sg_search']:
-            if reborn_code == ErrorCode.BAD_ANSWER or reborn_code == ErrorCode.NO_SEARCH_RESULT:  # noqa E501
-                # reborn
-                sg = SourceGraphProxy(config_path=self.config_path,
-                                      language=self.language)
-                sg_context = sg.search(llm_client=self.llm,
-                                       question=query,
-                                       groupname=groupname)
-                if sg_context is not None and len(sg_context) > 2:
-                    prompt, history = self.llm.build_prompt(
-                        instruction=query,
-                        context=sg_context,
-                        history_pair=history,
-                        template=self.GENERATE_TEMPLATE)
+        # if self.config['worker']['enable_sg_search']:
+        #     if reborn_code == ErrorCode.BAD_ANSWER or reborn_code == ErrorCode.NO_SEARCH_RESULT:  # noqa E501
+        #         # reborn
+        #         sg = SourceGraphProxy(config_path=self.config_path,
+        #                               language=self.language)
+        #         sg_context = sg.search(llm_client=self.llm,
+        #                                question=query,
+        #                                groupname=groupname)
+        #         if sg_context is not None and len(sg_context) > 2:
+        #             prompt, history = self.llm.build_prompt(
+        #                 instruction=query,
+        #                 context=sg_context,
+        #                 history_pair=history,
+        #                 template=self.GENERATE_TEMPLATE)
 
-                    response = self.llm.generate_response(prompt=prompt,
-                                                          history=history,
-                                                          backend='remote')
-                    tracker.log('source graph', [sg_context, response])
+        #             response = self.llm.generate_response(prompt=prompt,
+        #                                                   history=history,
+        #                                                   backend='remote')
+        #             tracker.log('source graph', [sg_context, response])
 
-                    prompt = self.PERPLESITY_TEMPLATE.format(query, response)
-                    if self.single_judge(prompt=prompt,
-                                         tracker=tracker,
-                                         throttle=9,
-                                         default=0):
-                        return ErrorCode.BAD_ANSWER, response, references
+        #             prompt = self.PERPLESITY_TEMPLATE.format(query, response)
+        #             if self.single_judge(prompt=prompt,
+        #                                  tracker=tracker,
+        #                                  throttle=9,
+        #                                  default=0):
+        #                 return ErrorCode.BAD_ANSWER, response, references
 
         if response is not None and len(response) >= 800:
             # reply too long, summarize it
             response = self.llm.generate_response(
                 prompt=self.SUMMARIZE_TEMPLATE.format(response))
 
-        if len(response) > 0 and self.single_judge(
-                self.SECURITY_TEMAPLTE.format(response),
-                tracker=tracker,
-                throttle=3,
-                default=0):
-            return ErrorCode.SECURITY, response, references
+        # if len(response) > 0 and self.single_judge(
+        #         self.SECURITY_TEMAPLTE.format(response),
+        #         tracker=tracker,
+        #         throttle=3,
+        #         default=0):
+        #     return ErrorCode.SECURITY, response, references
 
         if reborn_code != ErrorCode.SUCCESS:
             return reborn_code, response, references
 
         return ErrorCode.SUCCESS, response, references
+
+    def annotate_cluster(self,theme, cluster_no, chunk, history, groupname):
+        """Annotates a cluster of questions based on the user query and
+        generates appropriate responses.
+
+        Args:
+            cluster_no (str): The cluster number of the questions.
+            chunks (str):  A cluster of questions.
+            history (str): Chat history.
+            groupname (str): The group name in which user asked the query.
+
+        Returns:
+            ErrorCode: An error code indicating the status of response generation.  # noqa E501
+            str: Generated response to the user query.
+            references: List for referenced filename or web url
+        """
+        response = ''
+        references = []
+
+        if not self.work_time():
+            return ErrorCode.NOT_WORK_TIME, response, references
+
+        tracker = QueryTracker(self.logsavepath)
+        tracker.log('input', [chunk[:1000], history, groupname])
+
+        
+        response = self.llm.generate_response(prompt=self.ANNOTATE_CLUSTER.format(theme,chunk),
+                                            history=history,
+                                            backend='local')
+        if response is not None and len(response) >= 800:
+            # reply too long, summarize it
+            response = self.llm.generate_response(
+                                            prompt=self.SUMMARIZE_TEMPLATE.format(response),
+                                            history=history,
+                                            backend='local')
+
+        tracker.log('annotate cluster', [cluster_no,chunk, response])
+
+        return ErrorCode.SUCCESS, response, cluster_no
+
+    def getinspiration(self,theme,annotations,history,groupname):
+        """
+        give some idea of the review given the summary of the articals content
+        """
+        response = ''
+        references = []
+
+        if not self.work_time():
+            return ErrorCode.NOT_WORK_TIME, response, references
+
+        tracker = QueryTracker(self.logsavepath)
+        tracker.log('input', [annotations[:1000], history, groupname])
+
+        
+        response = self.llm.generate_response(prompt=self.INSPIRATION_TEMPLATE.format(theme,annotations),
+                                            history=history,
+                                            backend='local')
+
+        tracker.log('get inspiration', [theme,annotations, response])
+
+        return ErrorCode.SUCCESS, response
 
 
 def parse_args():

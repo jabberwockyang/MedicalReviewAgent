@@ -8,3 +8,4 @@ from .service import HybridLLMServer  # noqa E401
 from .service import WebSearch  # noqa E401
 from .service import Worker  # noqa E401
 from .service import llm_serve  # noqa E401
+from .service import ArticleRetrieval  # noqa E401

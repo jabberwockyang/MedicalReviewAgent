@@ -1,5 +1,0 @@
-Fragmented red cell (FRC) by automated hematologic analyzer is known to detect schistocyte. In this study, it is noted that FRC might be a favorable prognostic marker of hematopoietic stem cell transplantation associated thrombotic microangiopathy (TA‐TMA).
-
-The peripheral blood samples and clinical data of 89 patients were collected. The diagnosis of TA‐TMA was defined by the Blood and Marrow Transplant Clinical Trials Network's criteria and schistocyte or both schistocyte‐ and FRC‐positive cases and other parameters fulfilled are regarded as TA‐TMA.
-
-Schistocyte and FRC displayed a correlation coefficient of 0.461 (P < 0.001) by Spearman's method. The diagnostic concordance of TA‐TMA using schistocyte and FRC was 92.1% with kappa index of 0.531 (P < 0.001). The number of diagnosed patients and mean survival month were as follows: TA‐TMA by schistocyte, 8 (8.9%), 13.5 month; TA‐TMA by schistocyte and FRC, 7 (7.8%), 40.4 month; No TMA, 74 (83.1%), 38.3 month, respectively. Kaplan–Meier survival analysis by log‐rank method of the patient with TA‐TMA by schistocyte and rest of the group showed statistical significance (P < 0.01).

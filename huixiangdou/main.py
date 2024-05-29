@@ -4,6 +4,8 @@
 import argparse
 import os
 import time
+import json
+import random
 from multiprocessing import Process, Value
 
 import pytoml
@@ -30,6 +32,9 @@ def parse_args():
                         action='store_true',
                         default=False,
                         help='Auto deploy required Hybrid LLM Service.')
+    parser.add_argument('--step_by_step',
+                        default='annotate', # 'annotate' or 'sparkle' or 'writting'
+                        help='step by step mode')
     args = parser.parse_args()
     return args
 
@@ -69,98 +74,131 @@ def build_reply_text(reply: str, references: list):
         ret += ref
     return ret
 
+def annotation(assistant, config: dict,k,n=50):
+    query = 'annotation'
+    feature_dir = os.path.join(config['feature_store']['work_dir'], 'cluster_features')
+    samples_json = os.path.join(feature_dir, f'cluster_features_{k}','samples.json')
+    with open(samples_json, 'r') as f:
+        samples = json.load(f)
+        f.close()
 
-def lark_send_only(assistant, fe_config: dict):
-    queries = ['what is skin-gut axis?',"什么是肠皮轴？","肠道和皮肤的免疫细胞如何相互影响"]
-    for query in queries:
-        code, reply, references = assistant.generate(query=query,
-                                                     history=[],
-                                                     groupname='')
+    new_obj_list = []
+    for cluster_no in random.sample(samples.keys(), n):
+        chunk = '\n'.join(samples[cluster_no]['samples'][:10])
+
+        code, reply, cluster_no = assistant.annotate_cluster(
+                                                cluster_no=cluster_no,
+                                                chunk=chunk,
+                                                history=[],
+                                                groupname='')
+        references = f"cluster_no: {cluster_no}"
+        new_obj = {
+            'cluster_no': cluster_no,
+            'chunk': chunk,
+            'annotation': reply
+        }
+        new_obj_list.append(new_obj)
         logger.info(f'{code}, {query}, {reply}, {references}')
-        reply_text = build_reply_text(reply=reply, references=references)
 
-        if fe_config['type'] == 'lark' and code == ErrorCode.SUCCESS:
-            # send message to lark group
-            from .frontend import Lark
-            lark = Lark(webhook=fe_config['webhook_url'])
-            logger.info(f'send {reply} and {references} to lark group.')
-            lark.send_text(msg=reply_text)
+    with open(os.path.join(feature_dir, f'cluster_features_{k}', 'annotation.json'), 'w') as f:
+        json.dump(new_obj_list, f, indent=4, ensure_ascii=False)
+        f.close()
+        
 
 
-def lark_group_recv_and_send(assistant, fe_config: dict):
-    from .frontend import (is_revert_command, revert_from_lark_group,
-                           send_to_lark_group)
-    msg_url = fe_config['webhook_url']
-    lark_group_config = fe_config['lark_group']
-    sent_msg_ids = []
+# def lark_send_only(assistant, fe_config: dict):
+#     queries = ['what is skin-gut axis?',"什么是肠皮轴？","肠道和皮肤的免疫细胞如何相互影响"]
+#     for query in queries:
+    
+#         code, reply, references = assistant.generate(query=query,
+#                                                     history=[],
+#                                                     groupname='')
+        
+#         logger.info(f'{code}, {query}, {reply}, {references}')
+#         reply_text = build_reply_text(reply=reply, references=references)
 
-    while True:
-        # fetch a user message
-        resp = requests.post(msg_url, timeout=10)
-        resp.raise_for_status()
-        json_obj = resp.json()
-        if len(json_obj) < 1:
-            # no user input, sleep
-            time.sleep(2)
-            continue
-
-        logger.debug(json_obj)
-        query = json_obj['content']
-
-        if is_revert_command(query):
-            for msg_id in sent_msg_ids:
-                error = revert_from_lark_group(msg_id,
-                                               lark_group_config['app_id'],
-                                               lark_group_config['app_secret'])
-                if error is not None:
-                    logger.error(
-                        f'revert msg_id {msg_id} fail, reason {error}')
-                else:
-                    logger.debug(f'revert msg_id {msg_id}')
-                time.sleep(0.5)
-            sent_msg_ids = []
-            continue
-
-        code, reply, references = assistant.generate(query=query,
-                                                     history=[],
-                                                     groupname='')
-        if code == ErrorCode.SUCCESS:
-            json_obj['reply'] = build_reply_text(reply=reply,
-                                                 references=references)
-            error, msg_id = send_to_lark_group(
-                json_obj=json_obj,
-                app_id=lark_group_config['app_id'],
-                app_secret=lark_group_config['app_secret'])
-            if error is not None:
-                raise error
-            sent_msg_ids.append(msg_id)
-        else:
-            logger.debug(f'{code} for the query {query}')
+#         if fe_config['type'] == 'lark' and code == ErrorCode.SUCCESS:
+#             # send message to lark group
+#             from .frontend import Lark
+#             lark = Lark(webhook=fe_config['webhook_url'])
+#             logger.info(f'send {reply} and {references} to lark group.')
+#             lark.send_text(msg=reply_text)
 
 
-def wechat_personal_run(assistant, fe_config: dict):
-    """Call assistant inference."""
+# def lark_group_recv_and_send(assistant, fe_config: dict):
+#     from .frontend import (is_revert_command, revert_from_lark_group,
+#                            send_to_lark_group)
+#     msg_url = fe_config['webhook_url']
+#     lark_group_config = fe_config['lark_group']
+#     sent_msg_ids = []
 
-    async def api(request):
-        input_json = await request.json()
-        logger.debug(input_json)
+#     while True:
+#         # fetch a user message
+#         resp = requests.post(msg_url, timeout=10)
+#         resp.raise_for_status()
+#         json_obj = resp.json()
+#         if len(json_obj) < 1:
+#             # no user input, sleep
+#             time.sleep(2)
+#             continue
 
-        query = input_json['query']
+#         logger.debug(json_obj)
+#         query = json_obj['content']
 
-        if type(query) is dict:
-            query = query['content']
+#         if is_revert_command(query):
+#             for msg_id in sent_msg_ids:
+#                 error = revert_from_lark_group(msg_id,
+#                                                lark_group_config['app_id'],
+#                                                lark_group_config['app_secret'])
+#                 if error is not None:
+#                     logger.error(
+#                         f'revert msg_id {msg_id} fail, reason {error}')
+#                 else:
+#                     logger.debug(f'revert msg_id {msg_id}')
+#                 time.sleep(0.5)
+#             sent_msg_ids = []
+#             continue
 
-        code, reply, references = assistant.generate(query=query,
-                                                     history=[],
-                                                     groupname='')
-        reply_text = build_reply_text(reply=reply, references=references)
+#         code, reply, references = assistant.generate(query=query,
+#                                                      history=[],
+#                                                      groupname='')
+#         if code == ErrorCode.SUCCESS:
+#             json_obj['reply'] = build_reply_text(reply=reply,
+#                                                  references=references)
+#             error, msg_id = send_to_lark_group(
+#                 json_obj=json_obj,
+#                 app_id=lark_group_config['app_id'],
+#                 app_secret=lark_group_config['app_secret'])
+#             if error is not None:
+#                 raise error
+#             sent_msg_ids.append(msg_id)
+#         else:
+#             logger.debug(f'{code} for the query {query}')
 
-        return web.json_response({'code': int(code), 'reply': reply_text})
 
-    bind_port = fe_config['wechat_personal']['bind_port']
-    app = web.Application()
-    app.add_routes([web.post('/api', api)])
-    web.run_app(app, host='0.0.0.0', port=bind_port)
+# def wechat_personal_run(assistant, fe_config: dict):
+#     """Call assistant inference."""
+
+#     async def api(request):
+#         input_json = await request.json()
+#         logger.debug(input_json)
+
+#         query = input_json['query']
+
+#         if type(query) is dict:
+#             query = query['content']
+
+#         code, reply, references = assistant.generate(query=query,
+#                                                      history=[],
+#                                                      groupname='')
+#         reply_text = build_reply_text(reply=reply, references=references)
+
+#         return web.json_response({'code': int(code), 'reply': reply_text})
+
+#     bind_port = fe_config['wechat_personal']['bind_port']
+#     app = web.Application()
+#     app.add_routes([web.post('/api', api)])
+#     web.run_app(app, host='0.0.0.0', port=bind_port)
 
 
 def run():
@@ -188,21 +226,38 @@ def run():
 
     # query by worker
     with open(args.config_path, encoding='utf8') as f:
-        fe_config = pytoml.load(f)['frontend']
+        config = pytoml.load(f)
+        fe_config = config['frontend']
     logger.info('Config loaded.')
     assistant = Worker(work_dir=args.work_dir, config_path=args.config_path,language='en')
 
-    fe_type = fe_config['type']
-    if fe_type == 'lark' or fe_type == 'none':
-        lark_send_only(assistant, fe_config)
-    elif fe_type == 'lark_group':
-        lark_group_recv_and_send(assistant, fe_config)
-    elif fe_type == 'wechat_personal':
-        wechat_personal_run(assistant, fe_config)
+    step = args.step_by_step
+
+    if step == 'annotate':
+        annotation(assistant, config, 500)
+        annotation(assistant, config, 200)
+        annotation(assistant, config, 100)
+        annotation(assistant, config, 50)
+        annotation(assistant, config, 20,n=20)
+        annotation(assistant, config, 10,n=10)
+    elif step == 'sparkle':
+        pass # TODO
+    elif step == 'writting':
+        pass # TODO
     else:
-        logger.info(
-            f'unsupported fe_config.type {fe_type}, please read `config.ini` description.'  # noqa E501
-        )
+        logger.info(f'unsupported step_by_step mode {step}, please read `config.ini` description.')
+
+    # fe_type = fe_config['type']
+    # if fe_type == 'lark' or fe_type == 'none':
+    #     lark_send_only(assistant, fe_config)
+    # elif fe_type == 'lark_group':
+    #     lark_group_recv_and_send(assistant, fe_config)
+    # elif fe_type == 'wechat_personal':
+    #     wechat_personal_run(assistant, fe_config)
+    # else:
+    #     logger.info(
+    #         f'unsupported fe_config.type {fe_type}, please read `config.ini` description.'  # noqa E501
+    #     )
 
     # server_process.join()
 

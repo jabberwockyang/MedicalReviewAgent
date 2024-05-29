@@ -45,6 +45,8 @@ class ErrorCode(Enum):
     INTERNAL_ERROR = 14, 'internal error'
     SEARCH_FAIL = 15, 'Search fail, please check TOKEN and quota'
 
+    ANNOTATECLUSTER = 16, 'Annotate cluster'
+
     def __new__(cls, value, description):
         """Create new instance of ErrorCode."""
         obj = object.__new__(cls)
