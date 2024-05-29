@@ -46,9 +46,8 @@
 7. gradio前端
    目前是酱的
 <div style="display: flex;">
-    <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/f1cd213f-d41a-49f2-b0c9-2539f23b2b22" style="width: 30%;" />
-    <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/5037eb48-d0ef-46f2-9416-037079c58da9" style="width: 30%;" />
-    <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/80d8d463-45a4-46df-b988-86c4f42d4e7b" style="width: 30%;" />
+    <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/9bad5bd4-0afa-44b1-8de7-f2cd71ff2770" style="width: 30%;" />
+    <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/9f943949-ce82-4c79-8f03-eb6a34c0b29a" style="width: 30%;" />
 </div>
 
 
