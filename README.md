@@ -23,7 +23,7 @@
    - 用户键入文献检索关键词，自动从PubMed公开数据库上搜索并下载文献全文
    - xml到txt的文本清洗，去除reference 等无关信息
   
-2. chunk size可调
+2. chunk size可调的数据库生成
    -  default 1024 [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5)
      
 3. 嵌入kmeans聚类
