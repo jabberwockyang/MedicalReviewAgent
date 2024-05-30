@@ -44,6 +44,7 @@
 7. 基于LLM的综述生成
    - 输入可以是用户自己的问题，也可以参考之前llm生成的子问题
    - 为了比较同一个科学问题的不同来源的观点，修改了一部分茴香豆的Retriever逻辑
+      - retreiver 优化 [ref](https://medium.aiplanet.com/evaluating-naive-rag-and-advanced-rag-pipeline-using-langchain-v-0-1-0-and-ragas-17d24e74e5cf)
       - 返回topk =10的分段
       - 由于LLM捞针能力在头尾两端较靠谱，用langchain_community.document_transformers.LongContextReorder 将相关性较高的文本分布在头尾两端
      
@@ -78,4 +79,5 @@
 1. [茴香豆](https://github.com/InternLM/HuixiangDou)
 2. [E-utilities](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=PMCID)
 3. [Ragflow](https://github.com/infiniflow/ragflow/blob/main/README_zh.md)
+4. [Advanced RAG pipeline](https://medium.aiplanet.com/evaluating-naive-rag-and-advanced-rag-pipeline-using-langchain-v-0-1-0-and-ragas-17d24e74e5cf)
    
