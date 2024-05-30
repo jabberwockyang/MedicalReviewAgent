@@ -25,7 +25,7 @@
   
 2. 基于[Ragflow](https://github.com/infiniflow/ragflow/blob/main/README_zh.md)的deepdoc库的PDF识别
    - 输出文献中的文字和表格，其中文字存储为 txt, 表格存储为图片，json, html三个格式
-   - 目前工作流中利用文字，表格数据的利用开发中
+   - 目前工作流中仅利用文字，表格数据的利用开发中
      
 3. chunk size可调的数据库生成
    -  default 1024 [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5)
