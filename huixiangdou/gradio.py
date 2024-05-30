@@ -53,10 +53,13 @@ def get_ready(query:str,chunksize=None,k=None):
 
     if query == 'repo_work': # no need to return assistant
         return repodir, workdir, config
-
-    with open(os.path.join(config['feature_store']['repo_dir'],'config.json'), 'r') as f:
-        repo_config = json.load(f)
-    theme = ' '.join(repo_config['keywords'])
+    theme = ''
+    try:
+        with open(os.path.join(config['feature_store']['repo_dir'],'config.json'), 'r') as f:
+            repo_config = json.load(f)
+        theme = ' '.join(repo_config['keywords'])
+    except:
+        pass
 
     if query == 'annotation':
         if not chunksize or not k:
@@ -101,18 +104,36 @@ def update_repo_info():
         config = pytoml.load(f)
     repodir = config['feature_store']['repo_dir']
     if os.path.exists(repodir):
-        with open(os.path.join(repodir,'config.json'), 'r') as f:
-            repo_config = json.load(f)
+        pdffiles = glob.glob(os.path.join(repodir, '*.pdf'))
+        number_of_pdf = len(pdffiles)
+        if os.path.exists(os.path.join(repodir,'config.json')):
+                
+            with open(os.path.join(repodir,'config.json'), 'r') as f:
+                repo_config = json.load(f)
 
-        keywords = repo_config['keywords']
-        len = repo_config['len']
-        retmax = repo_config['retmax']
-        
-        return keywords,len,retmax
+            keywords = repo_config['keywords']
+            length = repo_config['len']
+            retmax = repo_config['retmax']
+
+            return keywords,length,retmax,number_of_pdf
+        else:
+            return None,None,None,number_of_pdf
     else:
-        return None,None,None
+        return None,None,None,None
                
-   
+def upload_file(files):
+    repodir, workdir, _ = get_ready('repo_work')
+    if not os.path.exists(repodir):
+        os.makedirs(repodir)
+
+    for file in files:
+        destination_path = os.path.join(repodir, os.path.basename(file.name))
+
+        shutil.copy(file.name, destination_path)
+    
+
+    return files
+
 def generate_articles_repo(keywords:str,retmax:int):
     keys= [k.strip() for k in keywords.split('\n')]
     repodir, workdir, _ = get_ready('repo_work')
@@ -126,8 +147,8 @@ def generate_articles_repo(keywords:str,retmax:int):
                                      repo_dir = repodir,
                                      retmax = retmax)
     articelfinder.initiallize()
-    keys,len,retmax = update_repo_info()
-    newinfo = f"关键词: {keys}\n文献数量: {len}\n获取上限: {retmax}"
+    keys,len,retmax,pdflen = update_repo_info()
+    newinfo = f"搜索得到文献：关键词: {keys}\n文献数量: {len}\n获取上限: {retmax}\n\n上传文献数量: {pdflen}"
     return gr.Textbox(label="文献库概况",lines =1,
                       value = newinfo,visible = True)
 def delete_articles_repo():
@@ -143,11 +164,15 @@ def delete_articles_repo():
                       visible = True)
 
 def update_repo():
-    keys,len,retmax = update_repo_info()
+    keys,len,retmax,pdflen = update_repo_info()
     if keys:
-        newinfo = f"关键词: {keys}\n文献数量: {len}\n获取上限: {retmax}"
+        newinfo = f"搜索得到文献：关键词: {keys}\n文献数量: {len}\n获取上限: {retmax}\n\n上传文献数量: {pdflen}"
     else:
-        newinfo = '目前还没有文献库'
+        if pdflen>0:
+            newinfo = f'上传文献数量: {pdflen}, 没有搜索文献'
+        else:
+            newinfo = '目前还没有文献库'
+
     return gr.Textbox(label="文献库概况",lines =1,
                       value = newinfo,
                       visible = True)
@@ -195,7 +220,7 @@ def generate_database(chunksize:int,nclusters:str|list[str]):
     # walk all files in repo dir
     file_opr = FileOperation()
     files = file_opr.scan_dir(repo_dir=repodir)
-    fs_init.initialize(files=files, work_dir=workdir)
+    fs_init.initialize(files=files, work_dir=workdir,file_opr=file_opr)
     file_opr.summarize(files)
     del fs_init
     cache.pop('default')
@@ -264,9 +289,9 @@ def inspiration(annotation:str,chunksize:int,nclusters:int):
         annoresult = [obj for obj in annoresult if obj['annotation'] in [txt.strip() for txt in annotation.split('\n')]]
     
     for index in random.sample(range(len(annoresult)), min(5, len(annoresult))):
-        cluster_no = [annoresult[index]['cluster_no']]
-        chunks = [annoresult[index]['annotation']]
-        chunks = '\n'.join(chunks)
+        cluster_no = annoresult[index]['cluster_no']
+        chunks = annoresult[index]['annotation']
+        
         code, reply = assistant.getinspiration(
                                                 theme = theme,
                                                 annotations = chunks,
@@ -284,14 +309,18 @@ def inspiration(annotation:str,chunksize:int,nclusters:int):
         with open(os.path.join(clusterdir, 'inspiration.txt'), 'a') as f:
             f.write(f'{reply}\n')
             
-    return '\n\n'.join([obj['inspiration'] for obj in new_obj_list])
+    return '\n\n'.join(list(set([obj['inspiration'] for obj in new_obj_list])))
 
 
 def getpmcurls(references):
     urls = []
     for ref in references:
-        refid = ref.replace('.txt','')
-        urls.append(f'https://www.ncbi.nlm.nih.gov/pmc/articles/PMC{refid}/')
+        if ref.startswith('PMC'):
+            
+            refid = ref.replace('.txt','')
+            urls.append(f'https://www.ncbi.nlm.nih.gov/pmc/articles/{refid}/')
+        else:
+            urls.append(ref)
     return urls
 
 def summarize_text(query,chunksize:int):
@@ -304,7 +333,7 @@ def summarize_text(query,chunksize:int):
     logger.info(f'{code}, {query}, {reply}, {references}')
     urls = getpmcurls(references)
     mds = '\n'.join([f'[{ref}]({url})' for ref,url in zip(references,urls)])
-    return reply,mds 
+    return reply, gr.Markdown(label="参考文献",value = mds) 
 
 # start service
 if __name__ == '__main__':
@@ -331,22 +360,30 @@ if __name__ == '__main__':
     with gr.Blocks() as demo:
         with gr.Tab("文献查找+数据库生成"):
             gr.Markdown("这里可以查找文献，生成数据库")
-            input_keys = gr.Textbox(label="感兴趣的关键词",
-                                            lines = 3)
-            retmax = gr.Slider(
-                    minimum=0,
-                    maximum=1000,
-                    value=500,
-                    interactive=True,
-                    label="查多少",
-                )
+            with gr.Row():
+                with gr.Column(scale=1):
+                    input_keys = gr.Textbox(label="感兴趣的关键词",
+                                                    lines = 3)
+                    retmax = gr.Slider(
+                            minimum=0,
+                            maximum=1000,
+                            value=500,
+                            interactive=True,
+                            label="查多少",
+                        )
+                with gr.Column(scale=2):
+                    file_output = gr.File()
+                    upload_button = gr.UploadButton("Click to Upload PDF", 
+                                    file_types=[".pdf",".csv",".doc"], 
+                                    file_count="multiple")
+                    
             with gr.Row():
                 generate_repo_button = gr.Button("生成文献库")
                 delete_repo_button = gr.Button("删除文献库")
                 update_repo_button = gr.Button("更新文献库情况")
 
             repo_summary =gr.Textbox(label= '文献库概况', value="目前还没有文献库")
-        
+
             generate_repo_button.click(generate_articles_repo, 
                                 inputs=[input_keys,retmax],
                                 outputs = [repo_summary])
@@ -356,6 +393,7 @@ if __name__ == '__main__':
                                 outputs = repo_summary)
             update_repo_button.click(update_repo, inputs=None,
                                 outputs = repo_summary)
+            upload_button.upload(upload_file, upload_button, file_output)
             with gr.Accordion("数据库构建参数", open=True):
                 gr.Markdown("[如何选择数据库构建参数]('https://github.com/jabberwockyang/MedicalReviewAgent/tree/main')")
                 chunksize = gr.Slider(label="Chunk Size",
@@ -415,7 +453,7 @@ if __name__ == '__main__':
             
             write_button = gr.Button("写综述")
             output_text = gr.Textbox(label="看看",lines=10)
-            output_references = gr.Textbox(label="参考文献",lines=1)
+            output_references = gr.Markdown(label="参考文献")
             
             update_options.click(update_chunksize_dropdown,
                                 outputs=[chunksize])

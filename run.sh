@@ -1,3 +1,3 @@
-conda activate InternLM2_Huixiangdou
-cd /root/ReviewAgent2/
+conda activate ReviewAgent
+cd MedicalReviewAgent
 python3 -m huixiangdou.gradio 

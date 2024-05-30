@@ -6,7 +6,7 @@ import pandas as pd
 import textract
 from bs4 import BeautifulSoup
 from loguru import logger
-
+from deepdoc.parser import RAGFlowPdfParser
 
 class FileName:
     """Record file original name, state and copied filepath with text
@@ -21,6 +21,9 @@ class FileName:
         self._type = _type
         self.state = True
         self.reason = ''
+        self.jsonpath = ''
+        self.imagefolder = ''
+        self.htmlpath = ''
 
     def __str__(self):
         return '{},{},{},{}\n'.format(self.basename, self.copypath, self.state,
@@ -31,6 +34,7 @@ class FileOperation:
     """Encapsulate all file reading operations."""
 
     def __init__(self):
+        self.pdf_parser = RAGFlowPdfParser()
         self.image_suffix = ['.jpg', '.jpeg', '.png', '.bmp']
         self.md_suffix = '.md'
         self.text_suffix = ['.txt', '.text']
@@ -116,23 +120,23 @@ class FileOperation:
 
     def read_pdf(self, filepath: str):
         # load pdf and serialize table
-
-        text = ''
-        with fitz.open(filepath) as pages:
-            for page in pages:
-                text += page.get_text()
-                tables = page.find_tables()
-                for table in tables:
-                    tablename = '_'.join(
-                        filter(lambda x: x is not None and 'Col' not in x,
-                               table.header.names))
-                    pan = table.to_pandas()
-                    json_text = pan.dropna(axis=1).to_json(force_ascii=False)
-                    text += tablename
-                    text += '\n'
-                    text += json_text
-                    text += '\n'
-        return text
+        text_content, tables = self.pdf_parser(filepath, need_image=False, zoomin=3, return_html=True)
+        # text = ''
+        # with fitz.open(filepath) as pages:
+        #     for page in pages:
+        #         text += page.get_text()
+        #         tables = page.find_tables()
+        #         for table in tables:
+        #             tablename = '_'.join(
+        #                 filter(lambda x: x is not None and 'Col' not in x,
+        #                        table.header.names))
+        #             pan = table.to_pandas()
+        #             json_text = pan.dropna(axis=1).to_json(force_ascii=False)
+        #             text += tablename
+        #             text += '\n'
+        #             text += json_text
+        #             text += '\n'
+        return text_content, tables
 
     def read_excel(self, filepath: str):
         table = None
@@ -149,18 +153,18 @@ class FileOperation:
         file_type = self.get_type(filepath)
 
         text = ''
-
+        tbls =[]
         if not os.path.exists(filepath):
-            return text, None
+            return text,tbls, None
 
         try:
-
+            
             if file_type == 'md' or file_type == 'text':
                 with open(filepath) as f:
                     text = f.read()
 
             elif file_type == 'pdf':
-                text += self.read_pdf(filepath)
+                text,tbls = self.read_pdf(filepath)
 
             elif file_type == 'excel':
                 text += self.read_excel(filepath)
@@ -176,17 +180,17 @@ class FileOperation:
                 with open(filepath) as f:
                     soup = BeautifulSoup(f.read(), 'html.parser')
                     text += soup.text
-
+            
         except Exception as e:
             logger.error((filepath, str(e)))
-            return '', e
+            return '',[], e
         text = text.replace('\n\n', '\n')
         text = text.replace('\n\n', '\n')
         text = text.replace('\n\n', '\n')
         text = text.replace('  ', ' ')
         text = text.replace('  ', ' ')
         text = text.replace('  ', ' ')
-        return text, None
+        return text, tbls, None
 
 
 if __name__ == '__main__':

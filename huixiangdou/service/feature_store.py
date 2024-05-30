@@ -24,16 +24,46 @@ from .file_operation import FileName, FileOperation
 from .retriever import CacheRetriever, Retriever
 from .cluster import Clusterer
 
+def save_image(image, path, name):
+    """ 保存图片到指定路径 """
+    if not os.path.exists(path):
+        os.makedirs(path)
+    image_path = os.path.join(path, name)
+    image.save(image_path)
+    return image_path
 
-def read_and_save(file: FileName):
-    if os.path.exists(file.copypath):
+def save_all_image(image_folder,tables):
+    # 假设 res 中包含了图片对象和其他数据
+    for index, data in enumerate(tables):
+        image, text = data  # 假设 data 结构是这样的
+        image_path = save_image(image, image_folder, f'image_{index}.png')
+        # relative_path = os.path.relpath(image_path, preprocessdir)
+        tables[index] = (image_path, text)  # 更新 res 中的图片对象为图片路径
+    return tables
+
+def create_html_file(tables, html_file_path):
+    html_content = '<html><body>\n'
+    for index, data in enumerate(tables):
+        image_path, text = data
+        # 创建图片链接和文本
+        html_content += f'<img src="{image_path}" alt="Image">\n{text}\n'
+    html_content += '</body></html>'
+    
+    # 写入 HTML 文件
+    with open(html_file_path, 'w') as file:
+        file.write(html_content)
+
+
+def read_and_save(file: FileName,file_opr: FileOperation):
+
+    if os.path.exists(file.copypath) and os.path.exists(file.jsonpath) and os.path.exists(file.htmlpath) and os.path.exists(file.imagefolder):
         # already exists, return
         logger.info('already exist, skip load')
         return
-    file_opr = FileOperation()
+    # file_opr = FileOperation()
     logger.info('reading {}, would save to {}'.format(file.origin,
                                                       file.copypath))
-    content, error = file_opr.read(file.origin)
+    content, tbls, error = file_opr.read(file.origin)
     if error is not None:
         logger.error('{} load error: {}'.format(file.origin, str(error)))
         return
@@ -44,6 +74,12 @@ def read_and_save(file: FileName):
 
     with open(file.copypath, 'w') as f:
         f.write(content)
+
+    tables = save_all_image(file.imagefolder,tbls)
+
+    with open(file.jsonpath, 'w') as f:
+        json.dump(tables, f, indent=4, ensure_ascii=False)
+    create_html_file(tables, file.htmlpath)
 
 
 def _split_text_with_regex_from_end(text: str, separator: str,
@@ -273,7 +309,7 @@ class FeatureStore:
             documents.append(chunk)
         return documents
 
-    def ingress_response(self, files: list, work_dir: str):
+    def ingress_response(self, files: list, work_dir: str, file_opr: FileOperation):
         """Extract the features required for the response pipeline based on the
         document."""
         chunk_dir = os.path.join(work_dir,f"chunksize_{self.chunk_size}")
@@ -282,7 +318,7 @@ class FeatureStore:
             os.makedirs(feature_dir)
 
         # logger.info('glob {} in dir {}'.format(files, file_dir))
-        file_opr = FileOperation()
+        # file_opr = FileOperation()
         documents = []
 
         for i, file in enumerate(files):
@@ -299,7 +335,7 @@ class FeatureStore:
 
             else:
                 # now read pdf/word/excel/ppt text
-                text, error = file_opr.read(file.copypath)
+                text, _,error = file_opr.read(file.copypath)
                 if error is not None:
                     file.state = False
                     file.reason = str(error)
@@ -377,7 +413,7 @@ class FeatureStore:
     #     vs = Vectorstore.from_documents(documents, self.embeddings)
     #     vs.save_local(feature_dir)
 
-    def preprocess(self, files: list, work_dir: str):
+    def preprocess(self, files: list, work_dir: str,file_opr: FileOperation):
         """Preprocesses files in a given directory. Copies each file to
         'preprocess' with new name formed by joining all subdirectories with
         '_'.
@@ -397,7 +433,7 @@ class FeatureStore:
             os.makedirs(preproc_dir)
 
         pool = Pool(processes=16)
-        file_opr = FileOperation()
+        # file_opr = FileOperation()
         for idx, file in enumerate(files):
             if not os.path.exists(file.origin):
                 file.state = False
@@ -408,12 +444,15 @@ class FeatureStore:
                 file.state = False
                 file.reason = 'skip image'
 
-            elif file._type in ['pdf', 'word', 'excel', 'ppt', 'html']:
+            elif file._type in ['pdf']:
                 # read pdf/word/excel file and save to text format
                 md5 = file_opr.md5(file.origin)
-                file.copypath = os.path.join(preproc_dir,
-                                             '{}.text'.format(md5))
-                pool.apply_async(read_and_save, (file, ))
+                file.copypath = os.path.join(preproc_dir,'{}.text'.format(md5))
+                file.jsonpath = os.path.join(preproc_dir,'{}.json'.format(md5))
+                file.htmlpath = os.path.join(preproc_dir,'{}.html'.format(md5))
+                file.imagefolder = os.path.join(preproc_dir,'{}_images'.format(md5))
+                # pool.apply_async(read_and_save, (file, ))
+                read_and_save(file,file_opr)
 
             elif file._type in ['md', 'text']:
                 # rename text files to new dir
@@ -429,7 +468,7 @@ class FeatureStore:
                     file.state = False
                     file.reason = str(e)
 
-            else:
+            else: #  'word', 'excel', 'ppt', 'html' TODO
                 file.state = False
                 file.reason = 'skip unknown format'
         pool.close()
@@ -467,7 +506,7 @@ class FeatureStore:
 
             
 
-    def initialize(self, files: list, work_dir: str):
+    def initialize(self, files: list, work_dir: str,file_opr: FileOperation):
         """Initializes response and reject feature store.
 
         Only needs to be called once. Also calculates the optimal threshold
@@ -477,8 +516,8 @@ class FeatureStore:
         logger.info(
             'initialize response and reject feature store, you only need call this once.'  # noqa E501
         )
-        self.preprocess(files=files, work_dir=work_dir)
-        self.ingress_response(files=files, work_dir=work_dir)
+        self.preprocess(files=files, work_dir=work_dir, file_opr=file_opr)
+        self.ingress_response(files=files, work_dir=work_dir, file_opr=file_opr)
         # self.ingress_reject(files=files, work_dir=work_dir)
         self.saveconfig(work_dir)
         

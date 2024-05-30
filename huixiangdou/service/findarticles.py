@@ -64,7 +64,7 @@ class ArticleRetrieval:
             }
             response = requests.get(base_url, params=params)
             full_text = self._clean_xml(response.text)
-            with open(os.path.join(self.repo_dir,f'{id}.txt'), 'w') as f:
+            with open(os.path.join(self.repo_dir,f'PMC{id}.txt'), 'w') as f:
                 f.write(full_text)
 
     def save_config(self):
