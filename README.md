@@ -56,7 +56,39 @@
 5. **远程和本地模型支持**
    - 支持多种大模型提供商的选择，满足不同用户的需求，无论是本地模型还是远程大模型，都能灵活配置和使用。
 
-## 技术路线
+## 安装运行
+   新建conda环境
+
+   ```bash
+conda create --name ReviewAgent python=3.10.14
+conda activate ReviewAgent
+   ```
+   拉取github仓库 
+
+   ```bash
+git clone https://github.com/jabberwockyang/MedicalReviewAgent.git
+cd MedicalReviewAgent
+pip install -r requirements.txt
+   ```
+   huggingface-cli下载模型
+
+   ```bash
+cd /root && mkdir models
+cd /root/models
+huggingface-cli download --resume-download Qwen/Qwen1.5-7B-Chat --local-dir-use-symlinks False  --local-dir /root/models/Qwen1.5-7B-Chat
+huggingface-cli download --resume-download bce-embedding-base_v1 --local-dir-use-symlinks False  --local-dir /root/models/bce-embedding-base_v1
+huggingface-cli download --resume-download bce-reranker-base_v1 --local-dir-use-symlinks False  --local-dir /root/models/bce-reranker-base_v1
+   ```
+   启动服务
+
+   ```bash
+conda activate ReviewAgent
+cd MedicalReviewAgent
+python3 app.py
+   ```
+   gradio在本地7860端口运行
+
+## 技术要点
 
 基于茴香豆加了几个功能
 
@@ -104,39 +136,6 @@
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/db2443ff-b6a2-4c35-83e6-21e478c39eba" style="width: 30%;" />
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/77496f38-f1e6-4919-a439-c06b4fd52aab" style="width: 30%;" />
 </div>
-
-
-## 安装运行
-   新建conda环境
-
-   ```bash
-conda create --name ReviewAgent python=3.10.14
-conda activate ReviewAgent
-   ```
-   拉取github仓库 
-
-   ```bash
-git clone https://github.com/jabberwockyang/MedicalReviewAgent.git
-cd MedicalReviewAgent
-pip install -r requirements.txt
-   ```
-   huggingface-cli下载模型
-
-   ```bash
-cd /root && mkdir models
-cd /root/models
-huggingface-cli download --resume-download Qwen/Qwen1.5-7B-Chat --local-dir-use-symlinks False  --local-dir /root/models/Qwen1.5-7B-Chat
-huggingface-cli download --resume-download bce-embedding-base_v1 --local-dir-use-symlinks False  --local-dir /root/models/bce-embedding-base_v1
-huggingface-cli download --resume-download bce-reranker-base_v1 --local-dir-use-symlinks False  --local-dir /root/models/bce-reranker-base_v1
-   ```
-   启动服务
-
-   ```bash
-conda activate ReviewAgent
-cd MedicalReviewAgent
-python3 app.py
-   ```
-   gradio在本地7860端口运行
 
    
 ## TODO 
