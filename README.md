@@ -9,50 +9,91 @@
 ### 文献库和知识库构建
 ![image](https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/81d4397a-0a15-46c1-8416-eaa27b4d1182)
 
-
 ### 人机合作写文章
 <img width="847" alt="image" src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/fc394d8b-1668-4349-9adc-1c4c0a7e0a8b">
 
 
+## 功能
+
+1. **模型服务配置**
+   - **远程模型选择**：允许用户选择使用远程大模型或本地模型。提供多种大模型提供商选择，如kimi、deepseek、zhipuai、gpt。
+
+2. **文献查找+数据库生成**
+   - **文献查找**：
+     - 用户可以输入感兴趣的关键词，设置查找数量，并进行PubMed PMC文献查找。
+     - 支持用户上传已有的PDF文献文件。
+   - **文献库管理**：
+     - 支持删除现有文献库。
+     - 提供文献库概况的实时更新。
+   - **数据库生成**：
+     - 用户可以设置块大小用于构建数据库
+     - 用户可以设置聚类数量用于文本聚类
+   - **数据库管理**：      
+     - 支持生成新的数据库，删除现有数据库，并查看数据库概况。
+
+3. **写综述**
+   - **抽样标注文章聚类**：
+     - 用户可以选择特定的块大小和聚类数，设置抽样标注比例，并开始标注过程。
+   - **获取灵感**：
+     - 基于标注的文章聚类，大模型提供灵感，帮助用户生成综述所需的问题框架。
+   - **综述生成**：
+     - 用户可以输入想写的内容或主题，点击生成综述按钮，系统将自动生成综述文本并提供参考文献。
+
+## 亮点
+
+1. **高效的文献查找和管理**
+   - 通过关键词快速查找相关文献，支持上传已有PDF文献，方便文献库的构建和管理。
+
+2. **灵活的数据库生成**
+   - 提供灵活的数据库生成参数设置，支持多次生成和更新数据库，保证数据的及时性和准确性。
+
+3. **智能的综述生成**
+   - 基于先进的大模型技术，提供自动化的文章聚类标注和灵感生成功能，帮助用户快速生成高质量的综述文本。
+
+4. **用户友好界面**
+   - 直观的操作界面和详细的使用指导，让用户能够轻松上手和使用各项功能。
+
+5. **远程和本地模型支持**
+   - 支持多种大模型提供商的选择，满足不同用户的需求，无论是本地模型还是远程大模型，都能灵活配置和使用。
+
 ## 技术路线
-本地模型是qwen1.5 7b chat 可以用API
 
 基于茴香豆加了几个功能
 
-1. 文献搜索和文本清洗
+1. 本地和远程模型灵活配置
+   - 本地模型是qwen1.5 7b chat
+   - 用户也可以在前端界面填写自己的API，本地远程模型任意切换
+     
+3. 文献搜索和文本清洗
    - 用户键入文献检索关键词，自动从PubMed公开数据库上搜索并下载文献全文
    - xml到txt的文本清洗，去除reference 等无关信息
   
-2. 基于[Ragflow](https://github.com/infiniflow/ragflow/blob/main/README_zh.md)的deepdoc库的PDF识别
+4. 基于[Ragflow](https://github.com/infiniflow/ragflow/blob/main/README_zh.md)的deepdoc库的PDF识别
    - 输出文献中的文字和表格，其中文字存储为 txt, 表格存储为图片，json, html三个格式
    - 目前工作流中仅利用文字，表格数据的利用开发中
      
-3. chunk size可调的数据库生成
+5. chunk size可调的数据库生成
    -  default 1024 [ref](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5)
      
-4. 嵌入kmeans聚类
+6. 嵌入kmeans聚类
    - 基于Faiss库
    - k可调
      
-5. 基于LLM的聚类内容标注
+7. 基于LLM的聚类内容标注
    - 为节省算力，可以抽样标注
    - 标注后本地储存避免重复标注
      
-6. 基于LLM的子问题生成
+8. 基于LLM的子问题生成
    - 聚类标注内容作为context，生成对应的子问题
      
-7. 基于LLM的综述生成
+9. 基于LLM的综述生成
    - 输入可以是用户自己的问题，也可以参考之前llm生成的子问题
    - 为了比较同一个科学问题的不同来源的观点，修改了一部分茴香豆的Retriever逻辑
       - retreiver 优化 [ref](https://medium.aiplanet.com/evaluating-naive-rag-and-advanced-rag-pipeline-using-langchain-v-0-1-0-and-ragas-17d24e74e5cf)
       - 返回topk =10的分段
       - 由于LLM捞针能力在头尾两端较靠谱，用langchain_community.document_transformers.LongContextReorder 将相关性较高的文本分布在头尾两端
      
-8. gradio前端
-   
-   - 可以添加API配置
-     
-   - 目前是酱的
+10. gradio前端
      
 <div style="display: flex;">
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/83a1cefe-ebe6-499a-9ca7-214e90089815" style="width: 30%;" />
@@ -96,6 +137,8 @@ cd MedicalReviewAgent
 python3 app.py
    ```
    gradio在本地7860端口运行
+
+   
 ## TODO 
 1. 自然语言到文献搜索参数的functional call功能
    - 比如：
