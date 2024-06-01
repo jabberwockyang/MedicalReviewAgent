@@ -55,7 +55,7 @@
    - 目前是酱的
      
 <div style="display: flex;">
-    <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/460990bb-c214-4d43-8481-2bcb853c70fb" style="width: 30%;" />
+    <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/83a1cefe-ebe6-499a-9ca7-214e90089815" style="width: 30%;" />
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/c369aeaa-6749-4d56-b71a-d62ff1cb780f" style="width: 30%;" />
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/27f1d440-2b79-4cbb-9b15-a5e2fa037d33" style="width: 30%;" />
 </div>
