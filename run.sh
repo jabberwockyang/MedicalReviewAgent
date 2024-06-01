@@ -1,3 +1,3 @@
 conda activate ReviewAgent
 cd MedicalReviewAgent
-python3 -m huixiangdou.gradio 
+python3 app.py

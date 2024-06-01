@@ -9,7 +9,7 @@ from BCEmbedding.tools.langchain import BCERerank
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.retrievers.document_compressors import DocumentCompressorPipeline
 from langchain.retrievers import ContextualCompressionRetriever
-from langchain.vectorstores.faiss import FAISS as Vectorstore
+from langchain_community.vectorstores.faiss import FAISS as Vectorstore
 from langchain_community.vectorstores.utils import DistanceStrategy
 from langchain_community.document_transformers import LongContextReorder
 from langchain_community.document_transformers.embeddings_redundant_filter import EmbeddingsRedundantFilter

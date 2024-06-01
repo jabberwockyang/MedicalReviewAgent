@@ -58,6 +58,36 @@
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/0e58dd3c-95c2-4ee6-b893-62b28c23e063" style="width: 30%;" />
 </div>
 
+## 安装运行
+   新建conda环境
+
+   ```bash
+conda create --name ReviewAgent python=3.10.14
+conda activate ReviewAgent
+   ```
+   拉取github仓库 
+
+   ```bash
+git clone https://github.com/jabberwockyang/MedicalReviewAgent.git
+cd MedicalReviewAgent
+pip install -r requirements.txt
+   ```
+   huggingface-cli下载模型
+
+   ```bash
+cd /root && mkdir models
+cd /root/models
+huggingface-cli download --resume-download Qwen/Qwen1.5-7B-Chat --local-dir-use-symlinks False  --local-dir /root/models/Qwen1.5-7B-Chat
+huggingface-cli download --resume-download bce-embedding-base_v1 --local-dir-use-symlinks False  --local-dir /root/models/bce-embedding-base_v1
+huggingface-cli download --resume-download bce-reranker-base_v1 --local-dir-use-symlinks False  --local-dir /root/models/bce-reranker-base_v1
+   ```
+   启动服务
+
+   ```bash
+conda activate ReviewAgent
+cd MedicalReviewAgent
+python3 app.py
+   ```
 
 ## TODO 
 1. 自然语言到文献搜索参数的functional call功能
@@ -68,7 +98,7 @@
             {"keywords":["atopic dermatitis","mendelian randomisation"],
              "min-year":2019,
              "max-year":2024,
-             "include-type":None,
+             "include-type":null,
              "exclude-type":"review"
              }
          ```

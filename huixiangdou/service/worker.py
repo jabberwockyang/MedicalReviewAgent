@@ -42,7 +42,7 @@ class Worker:
             config_path (str): The location of the configuration file.
             language (str, optional): Specifies the language to be used. Defaults to 'zh' (Chinese).  # noqa E501
         """
-        self.llm = ChatClient(config_path=config_path)
+        self.llm = ChatClient(config_path=config_path) #每次实例化worker都会重新实例化chatclient并读取本地最新的配置文件
         self.retriever = CacheRetriever(config_path=config_path).get(work_dir=work_dir)
 
         self.config_path = config_path
@@ -89,7 +89,7 @@ class Worker:
             self.ANNOTATE_CLUSTER = 'these are chunklized sentences from different papers about{}, they are clustered by similarity, the following is 10 samples from one of the cluster: "{}"\n Please tag the cluster in one breif sentence.' 
             self.INSPIRATION_TEMPLATE = 'Given the following summary of the articles content about {0} {1}, give some idea or sub-questions of the review about {0}, one question is sufficient.'  # noqa E501
     
-    def single_judge(self, prompt, tracker, throttle: int, default: int):
+    def single_judge(self, prompt, tracker, throttle: int, default: int,backend):
         """Generates a score based on the prompt, and then compares it to
         threshold.
 
@@ -106,7 +106,7 @@ class Worker:
             return False
 
         score = default
-        relation = self.llm.generate_response(prompt=prompt, backend='local')
+        relation = self.llm.generate_response(prompt=prompt, backend=backend)
         tracker.log('score', [relation, throttle, default])
         filtered_relation = ''.join([c for c in relation if c.isdigit()])
         try:
@@ -144,7 +144,7 @@ class Worker:
                 return True
         return False
 
-    def generate(self, query, history, groupname):
+    def generate(self, query, history, groupname,backend):
         """Processes user queries and generates appropriate responses. It
         involves several steps including checking for valid questions,
         extracting topics, querying the feature store, searching the web, and
@@ -154,7 +154,7 @@ class Worker:
             query (str): User's query.
             history (str): Chat history.
             groupname (str): The group name in which user asked the query.
-
+            backend (str): The backend to use for generating the response.
         Returns:
             ErrorCode: An error code indicating the status of response generation.  # noqa E501
             str: Generated response to the user query.
@@ -177,10 +177,10 @@ class Worker:
                 prompt=self.SCORING_QUESTION_TEMPLTE.format(query),
                 tracker=tracker,
                 throttle=6,
-                default=3):
+                default=3,backend=backend):
             return ErrorCode.NOT_A_QUESTION, response, references
 
-        topic = self.llm.generate_response(self.TOPIC_TEMPLATE.format(query))
+        topic = self.llm.generate_response(self.TOPIC_TEMPLATE.format(query),backend=backend)
         tracker.log('topic', topic)
 
         if len(topic) <= 2:
@@ -204,7 +204,7 @@ class Worker:
             if self.single_judge(self.SCORING_RELAVANCE_TEMPLATE.format(query, chunk),
                                 tracker=tracker,
                                 throttle=5,
-                                default=10):
+                                default=10,backend=backend):
                 context += chunk
                 context += '\n\n'
                 refs.append(ref)
@@ -216,8 +216,8 @@ class Worker:
                 history_pair=history,
                 template=self.GENERATE_TEMPLATE)
             response = self.llm.generate_response(prompt=prompt,
-                                                    history=history,
-                                                    backend='local')
+                                                    backend=backend,
+                                                    history=history)
             tracker.log('feature store doc', [chunk, response])
             return ErrorCode.SUCCESS, response, refs
 
@@ -271,7 +271,7 @@ class Worker:
             if self.single_judge(prompt=prompt,
                                  tracker=tracker,
                                  throttle=10,
-                                 default=0):
+                                 default=0,backend = backend):
                 reborn_code = ErrorCode.BAD_ANSWER
 
         # if self.config['worker']['enable_sg_search']:
@@ -304,7 +304,8 @@ class Worker:
         if response is not None and len(response) >= 800:
             # reply too long, summarize it
             response = self.llm.generate_response(
-                prompt=self.SUMMARIZE_TEMPLATE.format(response))
+                                                prompt=self.SUMMARIZE_TEMPLATE.format(response),
+                                                backend=backend)
 
         # if len(response) > 0 and self.single_judge(
         #         self.SECURITY_TEMAPLTE.format(response),
@@ -318,7 +319,7 @@ class Worker:
 
         return ErrorCode.SUCCESS, response, references
 
-    def annotate_cluster(self,theme, cluster_no, chunk, history, groupname):
+    def annotate_cluster(self,theme, cluster_no, chunk, history, groupname,backend):
         """Annotates a cluster of questions based on the user query and
         generates appropriate responses.
 
@@ -327,7 +328,7 @@ class Worker:
             chunks (str):  A cluster of questions.
             history (str): Chat history.
             groupname (str): The group name in which user asked the query.
-
+            backend (str): The backend to use for generating the response.
         Returns:
             ErrorCode: An error code indicating the status of response generation.  # noqa E501
             str: Generated response to the user query.
@@ -344,20 +345,20 @@ class Worker:
 
         
         response = self.llm.generate_response(prompt=self.ANNOTATE_CLUSTER.format(theme,chunk),
-                                            history=history,
-                                            backend='local')
+                                            backend=backend,
+                                            history=history)
         if response is not None and len(response) >= 800:
             # reply too long, summarize it
             response = self.llm.generate_response(
                                             prompt=self.SUMMARIZE_TEMPLATE.format(response),
-                                            history=history,
-                                            backend='local')
+                                            backend=backend,
+                                            history=history)
 
         tracker.log('annotate cluster', [cluster_no,chunk, response])
 
         return ErrorCode.SUCCESS, response, cluster_no
 
-    def getinspiration(self,theme,annotations,history,groupname):
+    def getinspiration(self,theme,annotations,history,groupname,backend):
         """
         give some idea of the review given the summary of the articals content
         """
@@ -372,8 +373,8 @@ class Worker:
 
         
         response = self.llm.generate_response(prompt=self.INSPIRATION_TEMPLATE.format(theme,annotations),
-                                            history=history,
-                                            backend='local')
+                                            backend=backend,
+                                            history=history)
 
         tracker.log('get inspiration', [theme,annotations, response])
 

@@ -7,10 +7,11 @@ import random
 import time
 from datetime import datetime, timedelta
 from multiprocessing import Process, Value
-
+import asyncio # yyj
 import pytoml
 import requests
 from aiohttp import web
+from aiohttp.web_runner import AppRunner
 from loguru import logger
 from openai import OpenAI
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -163,15 +164,17 @@ class HybridLLMServer:
     def __init__(self,
                  llm_config: dict,
                  device: str = 'cuda',
-                 retry=2) -> None:
+                 retry=2,
+                 config_path = 'config.ini') -> None:
         """Initialize the HybridLLMServer with the given configuration, device,
         and number of retries."""
         self.device = device
         self.retry = retry
         self.llm_config = llm_config
+        self.config_path = config_path
         self.server_config = llm_config['server']
-        self.enable_remote = llm_config['enable_remote']
-        self.enable_local = llm_config['enable_local']
+        # self.enable_remote = llm_config['enable_remote'] 
+        # self.enable_local = llm_config['enable_local']
 
         self.local_max_length = self.server_config['local_llm_max_text_length']
         self.remote_max_length = self.server_config[
@@ -185,13 +188,23 @@ class HybridLLMServer:
             _rpm = self.server_config['rpm']
         self.rpm = RPM(_rpm)
         self.token = ('', 0)
+        self.inference = InferenceWrapper(model_path)
+        # if self.enable_local:
+        #     self.inference = InferenceWrapper(model_path)
+        # else:
+        #     logger.warning('local LLM disabled.')
 
-        if self.enable_local:
-            self.inference = InferenceWrapper(model_path)
-        else:
-            logger.warning('local LLM disabled.')
+    def reload_config(self):
+        with open (self.config_path,'r', encoding='utf8') as f:
+            self.llm_config = pytoml.load(f)['llm']
+        self.server_config = self.llm_config['server']
+        self.remote_type = self.server_config['remote_type']
+        self.remote_model = self.server_config['remote_llm_model']
+        self.remote_max_length = self.server_config['remote_llm_max_text_length']
+        self.api_key = self.server_config['remote_api_key']
 
     def call_puyu(self, prompt, history):
+        self.reload_config()
         url = 'https://puyu.openxlab.org.cn/puyu/api/v1/chat/completion'
 
         now = time.time()
@@ -285,6 +298,7 @@ class HybridLLMServer:
         Returns:
             str: Generated response from Kimi.
         """
+        self.reload_config()
         client = OpenAI(
             api_key=self.server_config['remote_api_key'],
             base_url='https://api.moonshot.cn/v1',
@@ -327,6 +341,7 @@ class HybridLLMServer:
         Returns:
             str: Generated response from RPC.
         """
+        self.reload_config()
         if base_url is not None:
             client = OpenAI(api_key=self.server_config['remote_api_key'],
                             base_url=base_url)
@@ -365,6 +380,7 @@ class HybridLLMServer:
         Returns:
             str: Generated response.
         """
+        self.reload_config()
         client = OpenAI(
             api_key=self.server_config['remote_api_key'],
             base_url='https://api.deepseek.com/v1',
@@ -403,6 +419,7 @@ class HybridLLMServer:
         Returns:
             str: Generated response.
         """
+        self.reload_config()
         try:
             from zhipuai import ZhipuAI
             client = ZhipuAI(api_key=self.server_config['remote_api_key'])
@@ -435,6 +452,7 @@ class HybridLLMServer:
         return ''
 
     def call_alles_apin(self, prompt: str, history: list):
+        self.reload_config()
         self.rpm.wait()
 
         url = 'https://openxlab.org.cn/gw/alles-apin-hub/v1/openai/v2/text/chat'
@@ -459,7 +477,7 @@ class HybridLLMServer:
                 text = data['choices'][0]['message']['content']
         return text
 
-    def generate_response(self, prompt, history=[], backend='local'):
+    def generate_response(self, prompt, history=[], backend='local'): 
         """Generate a response from the appropriate LLM based on the
         configuration.
 
@@ -550,12 +568,12 @@ def llm_serve(config_path: str, server_ready: Value):
         server_ready (multiprocessing.Value): Shared variable to indicate when the server is ready.  # noqa E501
     """
     # logger.add('logs/server.log', rotation="4MB")
-    with open(config_path, encoding='utf8') as f:
+    with open(config_path,'r', encoding='utf8') as f:
         llm_config = pytoml.load(f)['llm']
         bind_port = int(llm_config['server']['local_llm_bind_port'])
 
     try:
-        server = HybridLLMServer(llm_config=llm_config)
+        server = HybridLLMServer(llm_config=llm_config,config_path=config_path)
         server_ready.value = 1
     except Exception as e:
         server_ready.value = -1

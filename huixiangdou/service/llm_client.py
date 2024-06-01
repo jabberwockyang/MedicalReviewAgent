@@ -68,7 +68,7 @@ class ChatClient:
 
         return instruction, real_history
 
-    def generate_response(self, prompt, history=[], backend='local'):
+    def generate_response(self, prompt, backend, history=[]):
         """Generate a response from the chat service.
 
         Args:
@@ -83,29 +83,41 @@ class ChatClient:
         url, enable_local, enable_remote = (llm_config['client_url'],
                                             llm_config['enable_local'],
                                             llm_config['enable_remote'])
+        type_given = llm_config['server']['remote_type'] != "" # yyj
+        api_given = llm_config['server']['remote_api_key'] != "" # yyj
+        llm_given = llm_config['server']['remote_llm_model'] != "" # yyj
 
-        remote = False
-        if backend != 'local':
-            remote = True
-
-        if remote and not enable_remote:
-            # if use remote LLM (for example, kimi) and disable enable_remote
-            # auto fixed to local LLM
-            remote = False
-            logger.warning(
-                'disable remote LLM while choose remote LLM, auto fixed')
-        elif not enable_local and not remote:
-            remote = True
-            logger.warning(
-                'diable local LLM while using local LLM, auto fixed')
-
-        if remote:
-            if backend == 'remote':
-                backend = llm_config['server']['remote_type']
-            max_length = llm_config['server']['remote_llm_max_text_length']
+        if backend == 'local' and enable_local: # yyj
+            max_length = llm_config['server']['local_llm_max_text_length'] # yyj
+        elif backend == 'remote' and enable_remote and type_given and api_given and llm_given: # yyj 
+            max_length = llm_config['server']['remote_llm_max_text_length'] # yyj
+            backend = llm_config['server']['remote_type'] # yyj
         else:
-            backend = 'local'
-            max_length = llm_config['server']['local_llm_max_text_length']
+            raise ValueError('Invalid backend or backend is not enabled')
+   
+        # remote = False
+        # if backend != 'local':
+        #     remote = True
+
+        # if remote and not enable_remote:
+        #     # if use remote LLM (for example, kimi) and disable enable_remote
+        #     # auto fixed to local LLM
+        #     remote = False
+        #     logger.warning(
+        #         'disable remote LLM while choose remote LLM, auto fixed')
+        # elif not enable_local and not remote:
+        #     remote = True
+        #     backend = 'remote' # yyj
+        #     logger.warning(
+        #         'diable local LLM while using local LLM, auto fixed')
+
+        # if remote:
+        #     if backend == 'remote':
+        #         backend = llm_config['server']['remote_type']
+        #     max_length = llm_config['server']['remote_llm_max_text_length']
+        # else:
+        #     backend = 'local'
+        #     max_length = llm_config['server']['local_llm_max_text_length']
 
         if len(prompt) > max_length:
             logger.warning(
