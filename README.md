@@ -53,10 +53,9 @@
    - 可以添加API配置
      
    - 目前是酱的
+     
 <div style="display: flex;">
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/460990bb-c214-4d43-8481-2bcb853c70fb" style="width: 30%;" />
-</div>
-<div style="display: flex;">
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/c369aeaa-6749-4d56-b71a-d62ff1cb780f" style="width: 30%;" />
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/27f1d440-2b79-4cbb-9b15-a5e2fa037d33" style="width: 30%;" />
 </div>
@@ -64,6 +63,8 @@
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/db2443ff-b6a2-4c35-83e6-21e478c39eba" style="width: 30%;" />
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/77496f38-f1e6-4919-a439-c06b4fd52aab" style="width: 30%;" />
 </div>
+
+
 ## 安装运行
    新建conda环境
 
