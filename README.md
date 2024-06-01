@@ -95,7 +95,7 @@ conda activate ReviewAgent
 cd MedicalReviewAgent
 python3 app.py
    ```
-
+   gradio在本地7860端口运行
 ## TODO 
 1. 自然语言到文献搜索参数的functional call功能
    - 比如：
