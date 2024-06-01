@@ -49,6 +49,8 @@
       - 由于LLM捞针能力在头尾两端较靠谱，用langchain_community.document_transformers.LongContextReorder 将相关性较高的文本分布在头尾两端
      
 8. gradio前端
+   
+   - 可以添加API配置
    目前是酱的
 <div style="display: flex;">
     <img src="https://github.com/jabberwockyang/MedicalReviewAgent/assets/52541128/10807133-e31c-4bd4-be30-ba7383c3054a" style="width: 30%;" />
