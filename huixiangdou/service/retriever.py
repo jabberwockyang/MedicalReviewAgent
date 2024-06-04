@@ -215,7 +215,7 @@ class CacheRetriever:
             model_name=embedding_model_path,
             model_kwargs={'device': 'cuda'},
             encode_kwargs={
-                'batch_size': 2048,
+                'batch_size': 1024,
                 'normalize_embeddings': True
             })
         self.embeddings.client = self.embeddings.client.half()

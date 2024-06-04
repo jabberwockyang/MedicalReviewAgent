@@ -77,7 +77,7 @@ class Clusterer():
         x = nparray.astype('float32')  # 转换数据类型为float32
 
         ncentroids = n_clusters
-        niter = 100  
+        niter = 100 + (n_clusters - 1) * 10
         verbose = True
 
         kmeans = faiss.Kmeans(d, ncentroids, niter=niter, verbose=verbose)
@@ -85,7 +85,7 @@ class Clusterer():
 
         index = faiss.IndexFlatL2(d)
         index.add(x)
-        D, I = index.search(kmeans.centroids, 50)
+        D, I = index.search(kmeans.centroids, 10) 
 
         samples = {}
         for i in range(ncentroids):

@@ -16,7 +16,7 @@ from loguru import logger
 from openai import OpenAI
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 def check_gpu_max_memory_gb():
     try:
         import torch
