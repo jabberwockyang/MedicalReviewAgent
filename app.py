@@ -12,6 +12,7 @@ from multiprocessing import Process, Value
 import gradio as gr
 import pytoml
 from loguru import logger
+import spaces
 
 from huixiangdou.service import Worker, llm_serve, ArticleRetrieval, CacheRetriever, FeatureStore, FileOperation
 
@@ -98,7 +99,7 @@ def update_remote_config(remote_ornot,remote_company = None,api = None,model = N
         pytoml.dump(config, f)
     return gr.Button("配置已保存")
 
-
+@spaces.GPU
 def get_ready(query:str,chunksize=None,k=None):
     
     with open(CONFIG_PATH, encoding='utf8') as f:
@@ -196,6 +197,7 @@ def generate_articles_repo(keywords:str,retmax:int):
                                      retmax = retmax)
     articelfinder.initiallize()
     return update_repo()
+
 def delete_articles_repo():
     # 在这里运行生成数据库的函数
     repodir, workdir, _ = get_ready('repo_work')
@@ -242,7 +244,7 @@ def update_database_info():
     
     return new_options, jsonobj
 
-
+@spaces.GPU
 def generate_database(chunksize:int,nclusters:str|list[str]):
     # 在这里运行生成数据库的函数
     repodir, workdir, _ = get_ready('repo_work')
@@ -277,8 +279,8 @@ def delete_database():
     _, workdir, _ = get_ready('repo_work')
     if os.path.exists(workdir):
         shutil.rmtree(workdir)
-
     return  gr.Textbox(label="数据库概况",lines =3,value = '数据库已删除',visible = True)
+
 def update_database_textbox():
     texts, _ = update_database_info()
     if texts == []:
@@ -295,6 +297,7 @@ def update_ncluster_dropdown(chunksize:int):
     nclusters = jsonobj[chunksize]
     return gr.Dropdown(choices= nclusters)
 
+@spaces.GPU
 def annotation(n,chunksize:int,nclusters:int,remote_ornot:bool):
     '''
     use llm to annotate cluster
@@ -334,7 +337,7 @@ def annotation(n,chunksize:int,nclusters:int,remote_ornot:bool):
             
     return '\n\n'.join([obj['annotation'] for obj in new_obj_list])
 
-
+@spaces.GPU
 def inspiration(annotation:str,chunksize:int,nclusters:int,remote_ornot:bool):
     query = 'inspiration'
     if remote_ornot:
@@ -382,7 +385,8 @@ def getpmcurls(references):
         else:
             urls.append(ref)
     return urls
-
+    
+@spaces.GPU
 def summarize_text(query,chunksize:int,remote_ornot:bool):
     if remote_ornot:
         backend = 'remote'

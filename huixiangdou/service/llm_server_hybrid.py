@@ -92,11 +92,11 @@ class InferenceWrapper:
             )
 
         self.tokenizer = AutoTokenizer.from_pretrained(model_path,
-                                                       trust_remote_code=True, local_files_only=True)
+                                                       trust_remote_code=True)
 
         if 'qwen1.5' in model_path.lower():
             self.model = AutoModelForCausalLM.from_pretrained(
-                model_path, device_map='auto', trust_remote_code=True, local_files_only=True).eval()
+                model_path, device_map='auto', trust_remote_code=True).eval()
         elif 'qwen' in model_path.lower():
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_path,
@@ -104,13 +104,13 @@ class InferenceWrapper:
                 trust_remote_code=True,
                 use_cache_quantization=True,
                 use_cache_kernel=True,
-                use_flash_attn=False, local_files_only=True).eval()
+                use_flash_attn=False).eval()
         else:
             self.model = AutoModelForCausalLM.from_pretrained(
                 model_path,
                 trust_remote_code=True,
                 device_map='auto',
-                torch_dtype='auto', local_files_only=True).eval()
+                torch_dtype='auto').eval()
 
     def chat(self, prompt: str, history=[]):
         """Generate a response from local LLM.
