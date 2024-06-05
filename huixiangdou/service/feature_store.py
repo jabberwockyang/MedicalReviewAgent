@@ -6,7 +6,7 @@ import json
 import os
 import re
 import shutil
-from multiprocessing import Pool
+# from multiprocessing import Pool
 from typing import Any, List, Optional
 
 import pytoml
@@ -432,8 +432,9 @@ class FeatureStore:
         if not os.path.exists(preproc_dir):
             os.makedirs(preproc_dir)
 
-        pool = Pool(processes=16)
+        # pool = Pool(processes=16)
         # file_opr = FileOperation()
+        logger.debug('waiting for preprocess read finish..')
         for idx, file in enumerate(files):
             if not os.path.exists(file.origin):
                 file.state = False
@@ -471,9 +472,9 @@ class FeatureStore:
             else: #  'word', 'excel', 'ppt', 'html' TODO
                 file.state = False
                 file.reason = 'skip unknown format'
-        pool.close()
-        logger.debug('waiting for preprocess read finish..')
-        pool.join()
+        # pool.close()
+        
+        # pool.join()
 
         # check process result
         for file in files:

@@ -5,6 +5,8 @@ import os
 from tqdm import tqdm
 import json
 import shutil
+from loguru import logger
+from lxml import etree
 
 class ArticleRetrieval:
     def __init__(self,
@@ -32,18 +34,22 @@ class ArticleRetrieval:
         return pmc_ids
 
     # 解析XML文件
-    def _get_all_text(self,element):
-        """递归获取XML元素及其所有子元素的文本内容"""
+    def _get_all_text(self, element):
+        """递归获取XML元素及其所有子元素的文本内容。确保element不为None."""
+        if element is None:
+            return ""
+        
         text = element.text or ""
         for child in element:
             text += self._get_all_text(child)
-            if child.tail:
+            if child is not None and child.tail:
                 text += child.tail
         return text
 
     ## 清洗XML文件
     def _clean_xml(self,txt):
-        root = ET.fromstring(txt)
+        parser = etree.XMLParser(recover=True)
+        root = ET.fromstring(txt,parser=parser)
         txt = self._get_all_text(root)
         txt = txt.split('REFERENCES')[0]  # 截取参考文献之前的文本
         text = '\n\n'.join([t.strip() for t in txt.split('\n') if len(t.strip())>250])
@@ -54,7 +60,7 @@ class ArticleRetrieval:
         if not os.path.exists(self.repo_dir):
             os.makedirs(self.repo_dir)
         print(f"Saving articles to {self.repo_dir}.")
-        
+        self.success = 0
         for id in tqdm(self.pmc_ids, desc="Fetching full texts", unit="article"):
             base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
             params = {
@@ -65,15 +71,20 @@ class ArticleRetrieval:
             }
             response = requests.get(base_url, params=params)
             full_text = self._clean_xml(response.text)
-            with open(os.path.join(self.repo_dir,f'PMC{id}.txt'), 'w') as f:
-                f.write(full_text)
+            if full_text.strip() == '':
+                continue
+            else:
+                logger.info(full_text[:1000])
+                with open(os.path.join(self.repo_dir,f'PMC{id}.txt'), 'w') as f:
+                    f.write(full_text)
+                self.success += 1
 
     def save_config(self):
         config = {
             'keywords': self.keywords,
             'repo_dir': self.repo_dir,
             'pmc_ids': self.pmc_ids,
-            'len': len(self.pmc_ids),
+            'len': self.success,
             'retmax': self.retmax
         }
         with open(os.path.join(self.repo_dir, 'config.json'), 'w') as f:
@@ -88,5 +99,4 @@ if __name__ == '__main__':
     if os.path.exists('repodir'):
         shutil.rmtree('repodir')
     articelfinder = ArticleRetrieval(keywords = ['covid-19'],repo_dir = 'repodir',retmax = 5)
-    pmc_ids = articelfinder.search_pmc()
-    articelfinder.fetch_full_text(pmc_ids)
+    articelfinder.initiallize()
