@@ -42,6 +42,10 @@ def parse_args():
                         action='store_true',
                         default=True,
                         help='Auto deploy required Hybrid LLM Service.')
+    parser.add_argument("--model_downloaded",
+                        type=bool,
+                        default=False,
+                        help="If the model has been downloaded in the root/models folder. Default is False.")
     args = parser.parse_args()
     return args
 
@@ -620,8 +624,12 @@ def main_interface():
 # start service
 if __name__ == '__main__':
     args = parse_args()
-    # copy config from config-bak
-    shutil.copy('config-bak.ini', args.config_path) # yyj
+    # copy config from config-bak 
+    if args.model_downloaded:
+        shutil.copy('config-mod_down-bak.ini', args.config_path) # yyj
+    else:
+        shutil.copy('config-bak.ini', args.config_path) # yyj
+
     CONFIG_PATH = args.config_path
 
     if args.standalone is True:

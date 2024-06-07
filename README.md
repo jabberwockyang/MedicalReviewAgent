@@ -81,7 +81,7 @@ git clone https://github.com/jabberwockyang/MedicalReviewAgent.git
 cd MedicalReviewAgent
 pip install -r requirements.txt
    ```
-   huggingface-cli下载模型
+   huggingface-cli下载模型(optional, 第一次调用的时候hf会下载,但是可能有墙)
 
    ```bash
 cd /root && mkdir models
@@ -96,7 +96,8 @@ huggingface-cli download maidalun1020/bce-reranker-base_v1 --local-dir /root/mod
    ```bash
 conda activate ReviewAgent
 cd MedicalReviewAgent
-python3 app.py
+python3 app.py --model_downloaded True # 如果已经在/root/models下载了模型 这个参数会换一个配置文件,里面的modelpath是本地路径不是hf的仓库路径 自己显卡跑跑用这个
+python3 app.py # 如果不打算用本地/root/models储存的模型 这是hf的spaces的构建配置
    ```
    gradio在本地7860端口运行
 
