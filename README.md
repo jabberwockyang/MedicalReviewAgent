@@ -14,6 +14,7 @@ pinned: false
 - 整一个帮我写综述的Agent，希望他能完成文献内容的收集，文本分类和总结，科学事实对比，撰写综述等功能
 - 计划用到RAG, function calling等技术
 - 还在不断摸索中，欢迎大佬指导！
+- [huggingface 体验链接](https://huggingface.co/spaces/Yijun-Yang/ReadReview/), zeroGPUs 比较吝啬 我把本地推理给阉割了 不要用本地模型哈 用API 用本地模型会报错
 
 ## 流程图
 基本上就是在上海AIlab的茴香豆上面改的 这里主要讲解使用流程 架构和茴香豆一样 [茴香豆架构](https://github.com/InternLM/HuixiangDou/blob/main/docs/architecture_zh.md)
