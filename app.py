@@ -106,7 +106,7 @@ def update_remote_config(remote_ornot,remote_company = None,api = None,baseurl =
         pytoml.dump(config, f)
     return gr.Button("配置已保存")
 
-@spaces.GPU(duration=360)
+# @spaces.GPU(duration=120)
 def get_ready(query:str,chunksize=None,k=None):
     
     with open(CONFIG_PATH, encoding='utf8') as f:
@@ -257,7 +257,7 @@ def update_database_info():
     
     return new_options, jsonobj
 
-@spaces.GPU(duration=360)
+@spaces.GPU(duration=120)
 def generate_database(chunksize:int,nclusters:str|list[str]):
     # 在这里运行生成数据库的函数
     repodir, workdir, _ = get_ready('repo_work')
@@ -310,7 +310,7 @@ def update_ncluster_dropdown(chunksize:int):
     nclusters = jsonobj[chunksize]
     return gr.Dropdown(choices= nclusters)
 
-@spaces.GPU(duration=360)
+# @spaces.GPU(duration=120)
 def annotation(n,chunksize:int,nclusters:int,remote_ornot:bool):
     '''
     use llm to annotate cluster
@@ -350,7 +350,7 @@ def annotation(n,chunksize:int,nclusters:int,remote_ornot:bool):
             
     return '\n\n'.join([obj['annotation'] for obj in new_obj_list])
 
-@spaces.GPU(duration=360)
+# @spaces.GPU(duration=120)
 def inspiration(annotation:str,chunksize:int,nclusters:int,remote_ornot:bool):
     query = 'inspiration'
     if remote_ornot:
@@ -399,7 +399,7 @@ def getpmcurls(references):
             urls.append(ref)
     return urls
     
-@spaces.GPU(duration=360)
+@spaces.GPU(duration=120)
 def summarize_text(query,chunksize:int,remote_ornot:bool):
     if remote_ornot:
         backend = 'remote'
