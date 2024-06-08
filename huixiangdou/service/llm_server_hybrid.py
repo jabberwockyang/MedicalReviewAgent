@@ -202,6 +202,7 @@ class HybridLLMServer:
         self.remote_model = self.server_config['remote_llm_model']
         self.remote_max_length = self.server_config['remote_llm_max_text_length']
         self.api_key = self.server_config['remote_api_key']
+        self.base_url = self.server_config['remote_base_url']
 
     def call_puyu(self, prompt, history):
         self.reload_config()
@@ -345,6 +346,9 @@ class HybridLLMServer:
         if base_url is not None:
             client = OpenAI(api_key=self.server_config['remote_api_key'],
                             base_url=base_url)
+        elif self.base_url != '':
+            client = OpenAI(api_key=self.server_config['remote_api_key'],
+                            base_url=self.base_url)
         else:
             client = OpenAI(api_key=self.server_config['remote_api_key'])
 

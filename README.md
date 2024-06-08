@@ -172,7 +172,7 @@ python3 app.py # 如果不打算用本地/root/models储存的模型 这是hf的
      
 ## 感谢
 1. [茴香豆](https://github.com/InternLM/HuixiangDou)
-2. [E-utilities](https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pmc&id=PMCID)
+2. [E-utilities](https://www.ncbi.nlm.nih.gov/books/NBK25499/)
 3. [Ragflow](https://github.com/infiniflow/ragflow/blob/main/README_zh.md)
 4. [Advanced RAG pipeline](https://medium.aiplanet.com/evaluating-naive-rag-and-advanced-rag-pipeline-using-langchain-v-0-1-0-and-ragas-17d24e74e5cf)
    

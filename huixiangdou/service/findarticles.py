@@ -10,28 +10,61 @@ from lxml import etree
 
 class ArticleRetrieval:
     def __init__(self,
-                    keywords: list,
+                    keywords: list = [],
+                    pmids: list = [],
                     repo_dir = 'repodir',
                     retmax = 500):
+        if keywords is [] and pmids is []:
+            raise ValueError("Either keywords or pmids must be provided.")
+        
         self.keywords = keywords
+        self.pmids = pmids
         self.repo_dir = repo_dir
         self.retmax = retmax
-        
-    ## 通过PMC数据库检索文章
-    def search_pmc(self):
+        self.pmc_ids = []
+
+
+    def esummary_pmc(self):
+        base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?"
+        params = {
+            "db": "pubmed",
+            "id": ','.join(self.pmids),
+            # "retmax": self.retmax
+        }
+        response = requests.get(base_url, params=params)
+        root = ET.fromstring(response.content)
+        results = []
+        for docsum in root.findall('DocSum'):
+            pmcid = None
+            id_value = docsum.find('Id').text
+            for item in docsum.findall('Item'):
+                if item.attrib.get('Name') == 'ArticleIds':
+                    for id_item in item.findall('Item'):
+                        if id_item.attrib.get('Name') == 'pmc':
+                            pmcid = id_item.text
+                            break
+
+            if pmcid:
+                results.append((id_value, pmcid))
+        self.esummary = results
+        self.pmc_ids = [r[1] for r in results]
+       
+    ## 通过Pubmed数据库检索文章
+    def esearch_pmc(self):
 
         base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
         params = {
-            "db": "pmc",
+            "db": "pubmed",
             "term": '+'.join(self.keywords),
             "retmax": self.retmax
         }
         response = requests.get(base_url, params=params)
         root = ET.fromstring(response.content)
-        pmc_ids = [id_element.text for id_element in root.findall('.//Id')]
-        print(f"Found {len(pmc_ids)} articles.")
-        self.pmc_ids = pmc_ids
-        return pmc_ids
+        idlist = root.find('.//IdList') 
+        pmids = [id_element.text for id_element in idlist.findall('.//Id')]
+        print(f"Found {len(pmids)} articles for keywords {self.keywords}.")
+        self.pmids.extend(pmids)
+        
 
     # 解析XML文件
     def _get_all_text(self, element):
@@ -74,8 +107,8 @@ class ArticleRetrieval:
             if full_text.strip() == '':
                 continue
             else:
-                logger.info(full_text[:1000])
-                with open(os.path.join(self.repo_dir,f'PMC{id}.txt'), 'w') as f:
+                logger.info(full_text[:500])
+                with open(os.path.join(self.repo_dir,f'{id}.txt'), 'w') as f:
                     f.write(full_text)
                 self.success += 1
 
@@ -83,7 +116,12 @@ class ArticleRetrieval:
         config = {
             'keywords': self.keywords,
             'repo_dir': self.repo_dir,
-            'pmc_ids': self.pmc_ids,
+            'result': [
+                {
+                    'pmid': r[0],
+                    'pmcid': r[1]
+                } for r in self.esummary
+            ],
             'len': self.success,
             'retmax': self.retmax
         }
@@ -91,12 +129,33 @@ class ArticleRetrieval:
             json.dump(config, f, indent=4, ensure_ascii=False)
 
     def initiallize(self):
-        self.search_pmc()
-        self.fetch_full_text()
-        self.save_config()
+        if self.keywords !=[]:
+            print(self.keywords)
+            self.esearch_pmc() # get pmids from pubmed database using keywords
+
+        self.esummary_pmc() # get pmc ids from pubmed database using pmids
+        self.fetch_full_text() # get full text from pmc database using pmc ids
+        self.save_config() # save config file
 
 if __name__ == '__main__':
     if os.path.exists('repodir'):
         shutil.rmtree('repodir')
-    articelfinder = ArticleRetrieval(keywords = ['covid-19'],repo_dir = 'repodir',retmax = 5)
+    
+    strings = """
+36944324
+38453907
+38300432
+38651453
+38398096
+38255885
+38035547
+38734498"""
+    string = [k.strip() for k in strings.split('\n')]
+
+    pmids = [k for k in string if k.isdigit()]
+    print(pmids)
+    keys = [k for k in string if not k.isdigit() and k != '']
+    print(keys)
+    articelfinder = ArticleRetrieval(keywords = keys,pmids = pmids,
+                                     repo_dir = 'repodir',retmax = 5)
     articelfinder.initiallize()

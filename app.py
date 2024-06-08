@@ -59,6 +59,8 @@ def update_remote_buttons(remote):
                                                 interactive=True,visible=True),
                 gr.Textbox(label="您的API",lines = 1,
                         interactive=True,visible=True),
+                gr.Textbox(label="base url",lines = 1,
+                        interactive=True,visible=True),
                 gr.Dropdown([],label="选择模型",
                             interactive=True,visible=True)
         ]
@@ -84,7 +86,7 @@ def udate_model_dropdown(remote_company):
     }
     return gr.Dropdown(choices= model_choices[remote_company])
 
-def update_remote_config(remote_ornot,remote_company = None,api = None,model = None):
+def update_remote_config(remote_ornot,remote_company = None,api = None,baseurl = None, model = None):
     with open(CONFIG_PATH, encoding='utf8') as f:
         config = pytoml.load(f)
          
@@ -95,6 +97,7 @@ def update_remote_config(remote_ornot,remote_company = None,api = None,model = N
             config['llm']['enable_remote'] = 1
             config['llm']['server']['remote_type'] = remote_company
             config['llm']['server']['remote_api_key'] = api
+            config['llm']['server']['remote_base_url'] = baseurl
             config['llm']['server']['remote_llm_model'] = model
         else:
             config['llm']['enable_local'] = 1
@@ -192,11 +195,17 @@ def upload_file(files):
 
     return files
 
-def generate_articles_repo(keywords:str,retmax:int):
-    keys= [k.strip() for k in keywords.split('\n')]
+def generate_articles_repo(strings:str,retmax:int):
+    
+    string = [k.strip() for k in strings.split('\n')]
+
+    pmids = [k for k in string if k.isdigit()]
+    keys = [k for k in string if not k.isdigit()]
+    
     repodir, _, _ = get_ready('repo_work')
 
     articelfinder = ArticleRetrieval(keywords = keys,
+                                     pmids = pmids,
                                      repo_dir = repodir,
                                      retmax = retmax)
     articelfinder.initiallize()
@@ -216,7 +225,7 @@ def delete_articles_repo():
 
 def update_repo():
     keys,len,retmax,pdflen = update_repo_info()
-    if keys:
+    if keys or len:
         newinfo = f"搜索得到文献：\n    关键词：{keys}\n    文献数量：{len}\n    获取上限：{retmax}\n\n上传文献：\n    数量：{pdflen}"
     else:
         if pdflen:
@@ -404,8 +413,8 @@ def summarize_text(query,chunksize:int,remote_ornot:bool):
       
     logger.info(f'{code}, {query}, {reply}, {references}')
     urls = getpmcurls(references)
-    mds = '\n'.join([f'[{ref}]({url})' for ref,url in zip(references,urls)])
-    return reply, gr.Markdown(label="参考文献",value = mds) 
+    mds = '\n\n'.join([f'[{ref}]({url})' for ref,url in zip(references,urls)])
+    return gr.Markdown(label="看看",value = reply,line_breaks=True) , gr.Markdown(label="参考文献",value = mds,line_breaks=True) 
 
 def main_interface():   
     with gr.Blocks() as demo:
@@ -440,13 +449,14 @@ def main_interface():
                 remote_company = gr.Dropdown(["kimi", "deepseek", "zhipuai",'gpt'],
                                             label="选择大模型提供商",interactive=False,visible=False)
                 api = gr.Textbox(label="您的API",lines = 1,interactive=False,visible=False)
+                baseurl = gr.Textbox(label="base url",lines = 1,interactive=False,visible=False)
                 model = gr.Dropdown([],label="选择模型",interactive=False,visible=False)
             
             confirm_button = gr.Button("保存配置")
 
-            remote_ornot.change(update_remote_buttons, inputs=[remote_ornot],outputs=[apimd,remote_company,api,model])
+            remote_ornot.change(update_remote_buttons, inputs=[remote_ornot],outputs=[apimd,remote_company,api,baseurl,model])
             remote_company.change(udate_model_dropdown, inputs=[remote_company],outputs=[model])
-            confirm_button.click(update_remote_config, inputs=[remote_ornot,remote_company,api,model],outputs=[confirm_button])
+            confirm_button.click(update_remote_config, inputs=[remote_ornot,remote_company,api,baseurl,model],outputs=[confirm_button])
 
 
         with gr.Tab("文献查找+数据库生成"):
@@ -482,6 +492,7 @@ def main_interface():
             with gr.Row(equal_height=True):
                 with gr.Column(scale=1):
                     input_keys = gr.Textbox(label="感兴趣的关键词",
+                                            value = "输入关键词或者PMID, 换行分隔",
                                                     lines = 5)
                     retmax = gr.Slider(
                             minimum=0,
@@ -597,7 +608,7 @@ def main_interface():
             query = gr.Textbox(label="想写什么")
             
             write_button = gr.Button("写综述")
-            output_text = gr.Textbox(label="看看",lines=10)
+            output_text = gr.Markdown(label="看看")
             output_references = gr.Markdown(label="参考文献")
             
             update_options.click(update_chunksize_dropdown,

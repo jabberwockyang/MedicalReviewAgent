@@ -17,6 +17,14 @@ from .sg_search import SourceGraphProxy
 from .web_search import WebSearch
 
 
+def convertid2url(text):
+    # Regular expression to find all PMC references
+    pattern = r"\[PMC(\d+)\]"
+    # Function to replace each match with a URL link
+    replacement = lambda match: f"[PMC{match.group(1)}](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC{match.group(1)}/)"
+    # Replace all occurrences in the text
+    formatted_text = re.sub(pattern, replacement, text)
+    return formatted_text
 class Worker:
     """The Worker class orchestrates the logic of handling user queries,
     generating responses and managing several aspects of a chat assistant. It
@@ -85,7 +93,7 @@ class Worker:
             self.SECURITY_TEMAPLTE = 'Evaluate whether the following sentence involves prohibited content such as politics, insult, pornography, terror, religion, cyber violence, racial discrimination, etc., rate it on a scale of 0-10, do not explain, just give the score. The scoring standard is as follows: any violation directly gets 10 points; completely unrelated gets 0 points. Give the score, no explanation: "{}"'  # noqa E501
             self.PERPLESITY_TEMPLATE = 'Question: {} Answer: {}\nRead the dialogue above, does the answer express that they don\'t know? The more comprehensive the answer, the lower the score. Rate it on a scale of 0-10, no explanation, just give the score.\nThe scoring standard is as follows: an accurate answer to the question gets 0 points; a detailed answer gets 1 point; knowing some answers but having uncertain information gets 8 points; knowing a small part of the answer but recommends seeking help from others gets 9 points; not knowing any of the answers and directly recommending asking others for help gets 10 points. Just give the score, no explanation.'  # noqa E501
             self.SUMMARIZE_TEMPLATE = '"{}" \n Read the content above carefully, summarize it in a short and powerful way.'  # noqa E501
-            self.GENERATE_TEMPLATE = 'Background Information: "{}"\n Question: "{}"\n Please read the reference material carefully and answer the question.'  # noqa E501
+            self.GENERATE_TEMPLATE = 'Background Information: "{}"\n Question: "{}"\n Please read the reference material carefully and answer the question.  with reference id at the end of the corresponding content for example:  Primary determinants of the therapeutic approach are age, comorbidities, and diagnostic molecular profile [PMC9958584]'  # noqa E501
             self.ANNOTATE_CLUSTER = 'these are chunklized sentences from different papers about{}, they are clustered by similarity, the following is 10 samples from one of the cluster: "{}"\n Please tag the cluster in one breif sentence.' 
             self.INSPIRATION_TEMPLATE = 'Given the following summary of the articles content about {0} {1}, give some idea or sub-questions of the review about {0}, one question is sufficient.'  # noqa E501
     
@@ -205,7 +213,7 @@ class Worker:
                                 tracker=tracker,
                                 throttle=5,
                                 default=10,backend=backend):
-                context += chunk
+                context += f"reference: {ref} content: {chunk}"
                 context += '\n\n'
                 refs.append(ref)
         refs = list(set(refs))
@@ -219,8 +227,13 @@ class Worker:
                                                     backend=backend,
                                                     history=history)
             tracker.log('feature store doc', [chunk, response])
-            return ErrorCode.SUCCESS, response, refs
+            response = convertid2url(response)
 
+            return ErrorCode.SUCCESS, response, refs
+        else:
+            return ErrorCode.NO_SEARCH_RESULT, response, references
+
+            
         # try:
         #     references = []
         #     web_context = ''
@@ -266,13 +279,13 @@ class Worker:
         # except Exception as e:
         #     logger.error(e)
 
-        if response is not None and len(response) > 0:
-            prompt = self.PERPLESITY_TEMPLATE.format(query, response)
-            if self.single_judge(prompt=prompt,
-                                 tracker=tracker,
-                                 throttle=10,
-                                 default=0,backend = backend):
-                reborn_code = ErrorCode.BAD_ANSWER
+        # if response is not None and len(response) > 0:
+        #     prompt = self.PERPLESITY_TEMPLATE.format(query, response)
+        #     if self.single_judge(prompt=prompt,
+        #                          tracker=tracker,
+        #                          throttle=10,
+        #                          default=0,backend = backend):
+        #         reborn_code = ErrorCode.BAD_ANSWER
 
         # if self.config['worker']['enable_sg_search']:
         #     if reborn_code == ErrorCode.BAD_ANSWER or reborn_code == ErrorCode.NO_SEARCH_RESULT:  # noqa E501
@@ -301,11 +314,11 @@ class Worker:
         #                                  default=0):
         #                 return ErrorCode.BAD_ANSWER, response, references
 
-        if response is not None and len(response) >= 800:
-            # reply too long, summarize it
-            response = self.llm.generate_response(
-                                                prompt=self.SUMMARIZE_TEMPLATE.format(response),
-                                                backend=backend)
+        # if response is not None and len(response) >= 800:
+        #     # reply too long, summarize it
+        #     response = self.llm.generate_response(
+        #                                         prompt=self.SUMMARIZE_TEMPLATE.format(response),
+        #                                         backend=backend)
 
         # if len(response) > 0 and self.single_judge(
         #         self.SECURITY_TEMAPLTE.format(response),
@@ -314,10 +327,9 @@ class Worker:
         #         default=0):
         #     return ErrorCode.SECURITY, response, references
 
-        if reborn_code != ErrorCode.SUCCESS:
-            return reborn_code, response, references
-
-        return ErrorCode.SUCCESS, response, references
+        # if reborn_code != ErrorCode.SUCCESS:
+        #     return reborn_code, response, references
+        # return ErrorCode.SUCCESS, response, references
 
     def annotate_cluster(self,theme, cluster_no, chunk, history, groupname,backend):
         """Annotates a cluster of questions based on the user query and

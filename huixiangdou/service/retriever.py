@@ -191,8 +191,7 @@ class Retriever:
             references.append(source)
 
         # context = context[0:context_max_length]
-        logger.debug('query:{} getting {} references ,top1 file:{}'.format(question, len(references),references[0]))
-        logger.info('query:{} getting {} references '.format(question, len(chunks)))
+        logger.info('query:{} getting {} references ,ID:{}'.format(question, len(references),', '.join(references)))
         return chunks, [os.path.basename(r) for r in references]
         # return '\n'.join(chunks), context, [
         #     os.path.basename(r) for r in references
