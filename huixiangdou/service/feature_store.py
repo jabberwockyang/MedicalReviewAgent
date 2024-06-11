@@ -473,7 +473,6 @@ class FeatureStore:
                 file.state = False
                 file.reason = 'skip unknown format'
         # pool.close()
-        
         # pool.join()
 
         # check process result
