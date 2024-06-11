@@ -118,9 +118,9 @@ def get_ready(query:str,chunksize=None,k=None):
         return repodir, workdir, config
     theme = ''
     try:
-        with open(os.path.join(config['feature_store']['repo_dir'],'config.json'), 'r') as f:
-            repo_config = json.load(f)
-        theme = ' '.join(repo_config['keywords'])
+        with open(os.path.join(config['feature_store']['repo_dir'],'info.json'), 'r') as f:
+            repo_info = json.load(f)
+        theme = ' '.join(repo_info['keywords'])
     except:
         pass
 
@@ -167,20 +167,21 @@ def update_repo_info():
     if os.path.exists(repodir):
         pdffiles = glob.glob(os.path.join(repodir, '*.pdf'))
         number_of_pdf = len(pdffiles)
-        if os.path.exists(os.path.join(repodir,'config.json')):
+        if os.path.exists(os.path.join(repodir,'info.json')):
                 
-            with open(os.path.join(repodir,'config.json'), 'r') as f:
-                repo_config = json.load(f)
+            with open(os.path.join(repodir,'info.json'), 'r') as f:
+                repo_info = json.load(f)
 
-            keywords = repo_config['keywords']
-            length = repo_config['len']
-            retmax = repo_config['retmax']
+            keywords = repo_info['keywords']
+            length = repo_info['len']
+            retmax = repo_info['retmax']
+            failed = repo_info['failed_pmids']
 
-            return keywords,length,retmax,number_of_pdf
+            return keywords,length,retmax,failed,number_of_pdf
         else:
-            return None,None,None,number_of_pdf
+            return None,None,None,None,number_of_pdf
     else:
-        return None,None,None,None
+        return None,None,None,None,None
                
 def upload_file(files):
     repodir, workdir, _ = get_ready('repo_work')
@@ -224,9 +225,9 @@ def delete_articles_repo():
                       visible = True)
 
 def update_repo():
-    keys,len,retmax,pdflen = update_repo_info()
+    keys,len,retmax,failed,pdflen = update_repo_info()
     if keys or len:
-        newinfo = f"搜索得到文献：\n    关键词：{keys}\n    文献数量：{len}\n    获取上限：{retmax}\n\n上传文献：\n    数量：{pdflen}"
+        newinfo = f"搜索得到文献：\n    关键词：{keys}\n    文献数量：{len}\n    获取上限：{retmax}\n    失败PMID：{failed}\n\n上传文献：\n    数量：{pdflen}"
     else:
         if pdflen:
             newinfo = f'搜索得到文献：无\n上传文献：\n    数量：{pdflen}'

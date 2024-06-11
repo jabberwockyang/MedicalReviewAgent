@@ -7,6 +7,20 @@ import json
 import shutil
 from loguru import logger
 from lxml import etree
+import sys
+from scihub_cn.scihub import main
+
+def scihub_download(doi_file_Path = None,doi = None,output_dir = None):
+    args = ["scihub-cn"]  # This is the program name as expected in argv[0]
+    if doi is not None:
+        args.extend(["-d", doi])
+    if doi_file_Path is not None:
+        args.extend(["-i", doi_file_Path, "--doi"])
+    if output_dir is not None:
+        args.extend(["-o", output_dir])
+    sys.argv = args  # Set sys.argv to our simulated command line arguments
+    sys.exit(main())
+
 
 class ArticleRetrieval:
     def __init__(self,
@@ -36,18 +50,26 @@ class ArticleRetrieval:
         results = []
         for docsum in root.findall('DocSum'):
             pmcid = None
+            doi = None
             id_value = docsum.find('Id').text
-            for item in docsum.findall('Item'):
-                if item.attrib.get('Name') == 'ArticleIds':
-                    for id_item in item.findall('Item'):
-                        if id_item.attrib.get('Name') == 'pmc':
-                            pmcid = id_item.text
-                            break
+            for item in docsum.findall('.//Item[@Name="doi"]'):
+                doi = item.text
+                break
+            for item in docsum.findall('.//Item[@Name="pmc"]'):
+                pmcid = item.text
+                break
 
-            if pmcid:
-                results.append((id_value, pmcid))
+            results.append((id_value, pmcid, doi))
+        
+        logger.info(f"total {len(results)} articles:")
+        logger.info(f"found {len([r for r in results if r[1] is not None])} articles with PMC ID.")
+        logger.info(f"found {len([r for r in results if r[2] is not None])} articles with DOI.")
+        logger.info(f"found {len([r for r in results if r[1] is None and r[2] is None])} articles without PMC ID and DOI.")
+                
         self.esummary = results
-        self.pmc_ids = [r[1] for r in results]
+        self.pmc_ids = [r[1] for r in results if r[1] is not None]
+        self.scihub_doi = [r[2] for r in results if r[1] is None and r[2] is not None]
+        self.failed_pmids = [r[0] for r in results if r[1] is None and r[2] is None]
        
     ## 通过Pubmed数据库检索文章
     def esearch_pmc(self):
@@ -111,6 +133,9 @@ class ArticleRetrieval:
                 with open(os.path.join(self.repo_dir,f'{id}.txt'), 'w') as f:
                     f.write(full_text)
                 self.success += 1
+        for doi in tqdm(self.scihub_doi, desc="Fetching full texts", unit="article"):
+            scihub_download(doi = doi,output_dir=self.repo_dir)
+            self.success += 1
 
     def save_config(self):
         config = {
@@ -119,13 +144,15 @@ class ArticleRetrieval:
             'result': [
                 {
                     'pmid': r[0],
-                    'pmcid': r[1]
+                    'pmcid': r[1],
+                    'doi': r[2]
                 } for r in self.esummary
             ],
             'len': self.success,
-            'retmax': self.retmax
+            'retmax': self.retmax,
+            'failed_pmids': self.failed_pmids
         }
-        with open(os.path.join(self.repo_dir, 'config.json'), 'w') as f:
+        with open(os.path.join(self.repo_dir, 'info.json'), 'w') as f:
             json.dump(config, f, indent=4, ensure_ascii=False)
 
     def initiallize(self):
