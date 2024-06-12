@@ -25,6 +25,7 @@ def convertid2url(text):
     # Replace all occurrences in the text
     formatted_text = re.sub(pattern, replacement, text)
     return formatted_text
+
 class Worker:
     """The Worker class orchestrates the logic of handling user queries,
     generating responses and managing several aspects of a chat assistant. It
@@ -82,7 +83,7 @@ class Worker:
             self.PERPLESITY_TEMPLATE = '“question:{} answer:{}”\n阅读以上对话，answer 是否在表达自己不知道，回答越全面得分越少，用0～10表示，不要解释直接给出得分。\n判断标准：准确回答问题得 0 分；答案详尽得 1 分；知道部分答案但有不确定信息得 8 分；知道小部分答案但推荐求助其他人得 9 分；不知道任何答案直接推荐求助别人得 10 分。直接打分不要解释。'  # noqa E501
             self.SUMMARIZE_TEMPLATE = '{} \n 仔细阅读以上内容，总结得简短有力点'  # noqa E501
             self.GENERATE_TEMPLATE = '材料：“{}”\n 问题：“{}” \n 请仔细阅读参考材料回答问题，材料可能和问题无关。如果材料和问题无关，尝试用你自己的理解来回答问题。如果无法确定答案，直接回答不知道。'  # noqa E501
-            self.GENERATE_TEMPLATE = '材料：“{}”\n 问题：“{}” \n 请仔细阅读参考材料回答问题。'  # noqa E501
+            self.GENERATE_TEMPLATE = '材料：“{}”\n 问题：“{}” \n 请仔细阅读参考材料回答问题，回答中附上对应内容的参考id，例如：治疗方法的主要决定因素是年龄、合并症和诊断分子特征[PMC9958586]'  # yyj
             self.ANNOTATE_CLUSTER = '这是关于{}的不同论文的分块句子，它们通过相似性进行了聚类，以下是其中一个聚类的10个样本：“{}”\n 请用一句话标注这个聚类。'  # noqa E501
             self.INSPIRATION_TEMPLATE = '以下是一些有关{0}的文章内容的总结 {1}，请提出一个关于{0}的综述子问题，一个问题即可。'   
         else:
@@ -93,7 +94,7 @@ class Worker:
             self.SECURITY_TEMAPLTE = 'Evaluate whether the following sentence involves prohibited content such as politics, insult, pornography, terror, religion, cyber violence, racial discrimination, etc., rate it on a scale of 0-10, do not explain, just give the score. The scoring standard is as follows: any violation directly gets 10 points; completely unrelated gets 0 points. Give the score, no explanation: "{}"'  # noqa E501
             self.PERPLESITY_TEMPLATE = 'Question: {} Answer: {}\nRead the dialogue above, does the answer express that they don\'t know? The more comprehensive the answer, the lower the score. Rate it on a scale of 0-10, no explanation, just give the score.\nThe scoring standard is as follows: an accurate answer to the question gets 0 points; a detailed answer gets 1 point; knowing some answers but having uncertain information gets 8 points; knowing a small part of the answer but recommends seeking help from others gets 9 points; not knowing any of the answers and directly recommending asking others for help gets 10 points. Just give the score, no explanation.'  # noqa E501
             self.SUMMARIZE_TEMPLATE = '"{}" \n Read the content above carefully, summarize it in a short and powerful way.'  # noqa E501
-            self.GENERATE_TEMPLATE = 'Background Information: "{}"\n Question: "{}"\n Please read the reference material carefully and answer the question.  with reference id at the end of the corresponding content for example:  Primary determinants of the therapeutic approach are age, comorbidities, and diagnostic molecular profile [PMC9958584]'  # noqa E501
+            self.GENERATE_TEMPLATE = 'Background Information: "{}"\n Question: "{}"\n Please read the reference material carefully and answer the question with reference id at the end of the corresponding content for example:  Primary determinants of the therapeutic approach are age, comorbidities, and diagnostic molecular profile [PMC9958586]'  # yyj
             self.ANNOTATE_CLUSTER = 'these are chunklized sentences from different papers about{}, they are clustered by similarity, the following is 10 samples from one of the cluster: "{}"\n Please tag the cluster in one breif sentence.' 
             self.INSPIRATION_TEMPLATE = 'Given the following summary of the articles content about {0} {1}, give some idea or sub-questions of the review about {0}, one question is sufficient.'  # noqa E501
     

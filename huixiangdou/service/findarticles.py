@@ -7,19 +7,59 @@ import json
 import shutil
 from loguru import logger
 from lxml import etree
-import sys
-from scihub_cn.scihub import main
+import requests
+from bs4 import BeautifulSoup
+import os
 
-def scihub_download(doi_file_Path = None,doi = None,output_dir = None):
-    args = ["scihub-cn"]  # This is the program name as expected in argv[0]
-    if doi is not None:
-        args.extend(["-d", doi])
-    if doi_file_Path is not None:
-        args.extend(["-i", doi_file_Path, "--doi"])
-    if output_dir is not None:
-        args.extend(["-o", output_dir])
-    sys.argv = args  # Set sys.argv to our simulated command line arguments
-    sys.exit(main())
+def download_pdfs(path, doi_list): #fox dalao contribution https://github.com/BigWhiteFox
+    # 确保下载目录存在
+    if not os.path.exists(path):
+        os.makedirs(path)
+    if isinstance(doi_list, str):
+        doi_list = [doi_list]
+    href_list = []
+
+    for doi in doi_list:
+        url = f"https://sci-hub.se/{doi}"
+        response = requests.get(url)
+
+        # 检查请求是否成功
+        if response.status_code == 200:
+            print(f"成功请求：{url}")
+        else:
+            print(f"请求失败：{url}，状态码：{response.status_code}")
+            continue  # 如果请求失败，跳过本次循环
+
+        soup = BeautifulSoup(response.text, 'html.parser')
+        buttons = soup.find_all('button', onclick=True)
+
+        for button in buttons:
+            onclick = button.get('onclick')
+            if onclick:
+                pdf_url = onclick.split("'")[1]
+                href_list.append((pdf_url, doi))
+                print("pdf_url:", pdf_url)
+        print("href_list:", href_list)
+
+    # 遍历href_list中的每个URL
+    for href, doi in href_list:
+        pdf_url = f"https:{href}"
+        response = requests.get(pdf_url, stream=True)
+        # 检查请求是否成功
+        if response.status_code == 200:
+            # 提取文件名，并替换非法字符
+            filename = doi.replace("/", "_")
+            if not filename.endswith(".pdf"):
+                filename += ".pdf"
+            # 指定文件路径
+            file_path = os.path.join(path, filename)
+            # 以流的方式分块下载文件
+            with open(file_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+            print(f"文件已下载，保存为：{file_path}")
+        else:
+            print(f"下载失败，状态码：{response.status_code}，URL：{pdf_url}")
 
 
 class ArticleRetrieval:
@@ -134,7 +174,7 @@ class ArticleRetrieval:
                     f.write(full_text)
                 self.success += 1
         for doi in tqdm(self.scihub_doi, desc="Fetching full texts", unit="article"):
-            scihub_download(doi = doi,output_dir=self.repo_dir)
+            download_pdfs(path=self.repo_dir,doi_list = doi)
             self.success += 1
 
     def save_config(self):
@@ -169,14 +209,10 @@ if __name__ == '__main__':
         shutil.rmtree('repodir')
     
     strings = """
-36944324
-38453907
-38300432
-38651453
-38398096
-38255885
-38035547
-38734498"""
+34536239
+7760895
+36109602
+24766875"""
     string = [k.strip() for k in strings.split('\n')]
 
     pmids = [k for k in string if k.isdigit()]
