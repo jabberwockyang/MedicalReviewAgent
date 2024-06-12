@@ -167,21 +167,28 @@ def update_repo_info():
     if os.path.exists(repodir):
         pdffiles = glob.glob(os.path.join(repodir, '*.pdf'))
         number_of_pdf = len(pdffiles)
+        # 判断info.json是否存在
         if os.path.exists(os.path.join(repodir,'info.json')):
                 
             with open(os.path.join(repodir,'info.json'), 'r') as f:
                 repo_info = json.load(f)
 
             keywords = repo_info['keywords']
-            length = repo_info['len']
             retmax = repo_info['retmax']
-            failed = repo_info['failed_pmids']
+            search_len = len(repo_info['search_pmids'])
+            import_len = len(repo_info['import_pmids'])
+            failed_pmid_len = len(repo_info['failed_pmids'])
 
-            return keywords,length,retmax,failed,number_of_pdf
+            pmc_success = repo_info['pmc_success_d']
+            scihub_success = repo_info['scihub_success_d']
+            failed_download = repo_info['failed_download']
+
+            number_of_upload = number_of_pdf-scihub_success
+            return keywords, retmax, search_len, import_len, failed_pmid_len, pmc_success, scihub_success, number_of_pdf, failed_download, number_of_upload 
         else:
-            return None,None,None,None,number_of_pdf
+            return None,None,None,None,None,None,None,None,None,number_of_pdf
     else:
-        return None,None,None,None,None
+        return None,None,None,None,None,None,None,None,None,None
                
 def upload_file(files):
     repodir, workdir, _ = get_ready('repo_work')
@@ -196,12 +203,11 @@ def upload_file(files):
 
     return files
 
-def generate_articles_repo(strings:str,retmax:int):
+def generate_articles_repo(keys:str,pmids,retmax:int):
     
-    string = [k.strip() for k in strings.split('\n')]
-
-    pmids = [k for k in string if k.isdigit()]
-    keys = [k for k in string if not k.isdigit()]
+    keys = [k.strip() for k in keys.split('\n')]
+    pmids = [k.strip() for k in pmids.split('\n')]
+    pmids = [k for k in pmids if k.isdigit()]
     
     repodir, _, _ = get_ready('repo_work')
 
@@ -225,15 +231,26 @@ def delete_articles_repo():
                       visible = True)
 
 def update_repo():
-    keys,len,retmax,failed,pdflen = update_repo_info()
-    if keys or len:
-        newinfo = f"搜索得到文献：\n    关键词：{keys}\n    文献数量：{len}\n    获取上限：{retmax}\n    失败PMID：{failed}\n\n上传文献：\n    数量：{pdflen}"
-    else:
+    keys, retmax, search_len, import_len, _, pmc_success, scihub_success, pdflen, failed, pdflen = update_repo_info()
+    newinfo = ""
+    if keys == None:
+        newinfo += '无关键词搜索相关信息\n'
+        newinfo += '无导入的PMID\n'
         if pdflen:
-            newinfo = f'搜索得到文献：无\n上传文献：\n    数量：{pdflen}'
+            newinfo += f'上传的PDF数量: {pdflen}\n'
         else:
-            newinfo = '目前还没有文献库'
-
+            newinfo += '无上传的PDF\n'
+    else:
+        newinfo += f'关键词搜索:'
+        newinfo += f'   关键词: {keys}\n'
+        newinfo += f'   搜索上限: {retmax}\n'
+        newinfo += f'   搜索到的PMID数量: {search_len}\n'
+        newinfo += f'导入的PMID数量: {import_len}\n'
+        newinfo += f'成功获取PMC全文数量: {pmc_success}\n'
+        newinfo += f'成功获取SciHub全文数量: {scihub_success}\n'
+        newinfo += f"下载失败的ID: {failed}\n"
+        newinfo += f'上传的PDF数量: {pdflen}\n'
+   
     return gr.Textbox(label="文献库概况",lines =1,
                       value = newinfo,
                       visible = True)
@@ -464,11 +481,12 @@ def main_interface():
             gr.Markdown("""
 #### 查找文献 📚
 
-1. **输入关键词批量PubMed PMC文献**
+1. **输入关键词或PMID批量PubMed PMC文献**
    - 在“感兴趣的关键词”框中输入您感兴趣的关键词，每行一个。
-   - 设置查找数量（0-1000）。
-   - 点击“搜索PubMed PMC”按钮进行文献查找。
-
+   - 设置查找数量（0-500）。
+   - 在“输入PMID”框中输入在PubMed中导出的PMID，每行一个。
+   - 点击“搜索PubMed 并拉取全文”按钮进行文献查找。目前主要基于PMC数据库和scihub, 在PMC中未收录的文献将使用scihub下载，scihub近年文献未收录
+                        
 2. **上传PDF**
    - 通过“上传PDF”按钮上传您已有的PDF文献文件。
 
@@ -492,35 +510,42 @@ def main_interface():
 """)
             with gr.Row(equal_height=True):
                 with gr.Column(scale=1):
-                    input_keys = gr.Textbox(label="感兴趣的关键词",
-                                            value = "输入关键词或者PMID, 换行分隔",
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            input_keys = gr.Textbox(label="感兴趣的关键词, 换行分隔, 不太好用别用等我改改",
                                                     lines = 5)
-                    retmax = gr.Slider(
-                            minimum=0,
-                            maximum=1000,
-                            value=500,
-                            interactive=True,
-                            label="查多少",
-                        )
-                    generate_repo_button = gr.Button("搜索PubMed PMC")
-                with gr.Column(scale=2):
+                            retmax = gr.Slider(
+                                    minimum=0,
+                                    maximum=500,
+                                    value=250,
+                                    interactive=True,
+                                    label="搜索上限",
+                                    info="How many articles you want to retrieve?"
+                                )
+
+                        with gr.Column(scale=1):
+                            input_pmids = gr.Textbox(label="输入PMID, 换行分隔",
+                                                    lines = 5)
+                    
+                    generate_repo_button = gr.Button("搜索PubMed并拉取全文")     
+
+                with gr.Column(scale=1):
                     file_output = gr.File(scale=2)
                     upload_button = gr.UploadButton("上传PDF", 
-                                    file_types=[".pdf",".csv",".doc"], 
-                                    file_count="multiple",scale=0)
+                                    file_types=[".pdf"], 
+                                    file_count="multiple",scale=1)
                     
             with gr.Row(equal_height=True):
                 with gr.Column(scale=0):
                     delete_repo_button = gr.Button("删除文献库")
                     update_repo_button = gr.Button("更新文献库情况")
                 with gr.Column(scale=2):
-
-                    repo_summary =gr.Textbox(label= '文献库概况', value="目前还没有文献库")
+                    repo_summary =gr.Textbox(label= '文献库概况', 
+                                             value="目前还没有文献库")
 
             generate_repo_button.click(generate_articles_repo, 
-                                inputs=[input_keys,retmax],
+                                inputs=[input_keys,input_pmids,retmax],
                                 outputs = [repo_summary])
-            
             
             delete_repo_button.click(delete_articles_repo, inputs=None,
                                 outputs = repo_summary)
@@ -535,7 +560,6 @@ def main_interface():
                                         minimum=128, maximum=4096,value=1024,step=1,
                                         interactive=True)
                 ncluster = gr.CheckboxGroup(["10", "20", "50", '100','200','500','1000'], 
-                                            # default=["20", "50", '100'],
                                             label="Number of Clusters", 
                                             info="How many Clusters you want to generate")
 

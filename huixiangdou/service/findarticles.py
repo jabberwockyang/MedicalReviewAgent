@@ -44,22 +44,19 @@ def download_pdfs(path, doi_list): #fox dalao contribution https://github.com/Bi
     # 遍历href_list中的每个URL
     for href, doi in href_list:
         pdf_url = f"https:{href}"
-        response = requests.get(pdf_url, stream=True)
-        # 检查请求是否成功
-        if response.status_code == 200:
-            # 提取文件名，并替换非法字符
-            filename = doi.replace("/", "_")
-            if not filename.endswith(".pdf"):
-                filename += ".pdf"
-            # 指定文件路径
-            file_path = os.path.join(path, filename)
-            # 以流的方式分块下载文件
-            with open(file_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            print(f"文件已下载，保存为：{file_path}")
-        else:
-            print(f"下载失败，状态码：{response.status_code}，URL：{pdf_url}")
+        try:
+            response = requests.get(pdf_url, stream=True)
+            if response.status_code == 200:
+                filename = doi.replace("/", "_") + ".pdf"
+                file_path = os.path.join(path, filename)
+                with open(file_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                print(f"File downloaded and saved as: {file_path}")
+            else:
+                print(f"Download failed, Status Code: {response.status_code}, URL: {pdf_url}")
+        except requests.RequestException as e:
+            print(f"Failed to download due to an exception: {e}")
 
 
 class ArticleRetrieval:
@@ -123,11 +120,15 @@ class ArticleRetrieval:
         response = requests.get(base_url, params=params)
         root = ET.fromstring(response.content)
         idlist = root.find('.//IdList') 
-        pmids = [id_element.text for id_element in idlist.findall('.//Id')]
+        try:
+            pmids = [id_element.text for id_element in idlist.findall('.//Id')]
+        except:
+            pmids = []
+
         print(f"Found {len(pmids)} articles for keywords {self.keywords}.")
+        self.search_pmid = pmids
         self.pmids.extend(pmids)
         
-
     # 解析XML文件
     def _get_all_text(self, element):
         """递归获取XML元素及其所有子元素的文本内容。确保element不为None."""
@@ -155,8 +156,16 @@ class ArticleRetrieval:
         if not os.path.exists(self.repo_dir):
             os.makedirs(self.repo_dir)
         print(f"Saving articles to {self.repo_dir}.")
-        self.success = 0
+        self.pmc_success = 0
+        self.scihub_success = 0
+        self.failed_download = []
+        downloaded = os.listdir(self.repo_dir)
         for id in tqdm(self.pmc_ids, desc="Fetching full texts", unit="article"):
+            # check if file already downloaded
+            if f"{id}.txt" in downloaded:
+                print(f"File already downloaded: {id}")
+                self.pmc_success += 1
+                continue
             base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
             params = {
                 "db": "pmc",
@@ -167,20 +176,33 @@ class ArticleRetrieval:
             response = requests.get(base_url, params=params)
             full_text = self._clean_xml(response.text)
             if full_text.strip() == '':
+                self.failed_download.append(id)
                 continue
             else:
-                logger.info(full_text[:500])
+                logger.info(full_text[:200])
                 with open(os.path.join(self.repo_dir,f'{id}.txt'), 'w') as f:
                     f.write(full_text)
-                self.success += 1
+                self.pmc_success += 1
         for doi in tqdm(self.scihub_doi, desc="Fetching full texts", unit="article"):
-            download_pdfs(path=self.repo_dir,doi_list = doi)
-            self.success += 1
+            # check if file already downloaded
+            if f"{doi.replace('/','_')}.pdf" in downloaded: 
+                print(f"File already downloaded: {doi}")
+                self.scihub_success += 1
+                continue
+
+            if download_pdfs(path=self.repo_dir,doi_list = doi):
+                self.scihub_success += 1
+            else:
+                self.failed_download.append(doi)
 
     def save_config(self):
         config = {
-            'keywords': self.keywords,
             'repo_dir': self.repo_dir,
+            'keywords': self.keywords,
+            'retmax': self.retmax,
+            "search_pmids": self.search_pmid,
+            'import_pmids': [id for id in self.pmids if id not in self.search_pmid],
+            'failed_pmids': self.failed_pmids,
             'result': [
                 {
                     'pmid': r[0],
@@ -188,9 +210,10 @@ class ArticleRetrieval:
                     'doi': r[2]
                 } for r in self.esummary
             ],
-            'len': self.success,
-            'retmax': self.retmax,
-            'failed_pmids': self.failed_pmids
+            "pmc_success_d": self.pmc_success,
+            "scihub_success_d": self.scihub_success,
+            "failed_download": self.failed_download,
+            
         }
         with open(os.path.join(self.repo_dir, 'info.json'), 'w') as f:
             json.dump(config, f, indent=4, ensure_ascii=False)
