@@ -1,5 +1,5 @@
 ---
-title: 文献综述助手 (又名不想看文献)
+title: 文献综述助手
 emoji: 📚
 colorFrom: blue
 colorTo: indigo
@@ -9,7 +9,8 @@ sdk_version: "4.25.0"
 app_file: app.py
 pinned: false
 ---
-# MedicalReviewAgent 不想看文献
+[English](README_en.md) | 中文
+# MedicalReviewAgent 
 ## 项目概述
 - 一个基于RAG技术和Agent流程的医学文献综述辅助工具。他允许用户配置本地或远程的大语言模型，通过关键词或PMID搜索PubMed以获取文献，上传PDF文件，以及创建和管理文献数据库。用户可以通过设置不同的参数来生成数据库，用于不同的需求。
 - 其中文本分块的聚类和标注功能作为一个创新点，目标是通过聚类算法对大量的文本分块进行聚类，这样大模型只需要阅读少量代表性分块并对聚类进行标注就可以输出对数据库内容的整体认识。

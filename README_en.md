@@ -1,8 +1,5 @@
-Here's a README in English for your project, "MedicalReviewAgent" (a.k.a. "I Don't Want to Read Papers").
-
----
-
-# MedicalReviewAgent: I Don't Want to Read Papers
+English | [中文](README.md)
+# MedicalReviewAgent: 
 
 ## Project Overview
 
