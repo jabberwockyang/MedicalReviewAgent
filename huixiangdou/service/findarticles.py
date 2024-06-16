@@ -88,6 +88,7 @@ class ArticleRetrieval:
         for docsum in root.findall('DocSum'):
             pmcid = None
             doi = None
+            abstract = None
             id_value = docsum.find('Id').text
             for item in docsum.findall('.//Item[@Name="doi"]'):
                 doi = item.text
@@ -155,11 +156,16 @@ class ArticleRetrieval:
     def fetch_full_text(self):
         if not os.path.exists(self.repo_dir):
             os.makedirs(self.repo_dir)
+            os.makedirs(self.repo_dir + '_ab')
+
         print(f"Saving articles to {self.repo_dir}.")
         self.pmc_success = 0
         self.scihub_success = 0
+        self.abstract_success = 0
         self.failed_download = []
+        self.failed_abstract = []
         downloaded = os.listdir(self.repo_dir)
+        downloaded_ab = os.listdir(self.repo_dir + '_ab')
         for id in tqdm(self.pmc_ids, desc="Fetching full texts", unit="article"):
             # check if file already downloaded
             if f"{id}.txt" in downloaded:
@@ -194,6 +200,27 @@ class ArticleRetrieval:
                 self.scihub_success += 1
             else:
                 self.failed_download.append(doi)
+        for pmid in tqdm(self.pmids, desc="Fetching abstract texts", unit="article"):
+            # check if file already downloaded
+            if f"{pmid}.txt" in downloaded_ab:
+                print(f"File already downloaded: {pmid}")
+                self.scihub_success += 1
+                continue
+            base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
+            params = {
+                "db": "pubmed",
+                "id": pmid,
+            }
+
+            response = requests.get(base_url, params=params)
+            root = ET.fromstring(response.content)
+            abstract = root.find('.//AbstractText')
+            if abstract is not None:
+                with open(os.path.join(self.repo_dir + '_ab',f'{pmid}.txt'), 'w') as f:
+                    f.write(abstract.text)
+                self.abstract_success += 1
+            else:
+                self.failed_abstract.append(pmid)
 
     def save_config(self):
         config = {
@@ -213,6 +240,8 @@ class ArticleRetrieval:
             "pmc_success_d": self.pmc_success,
             "scihub_success_d": self.scihub_success,
             "failed_download": self.failed_download,
+            "abstract_success": self.abstract_success,
+            "failed_abstract": self.failed_abstract
             
         }
         with open(os.path.join(self.repo_dir, 'info.json'), 'w') as f:

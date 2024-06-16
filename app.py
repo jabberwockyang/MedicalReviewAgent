@@ -107,7 +107,7 @@ def update_remote_config(remote_ornot,remote_company = None,api = None,baseurl =
     return gr.Button("配置已保存")
 
 # @spaces.GPU(duration=120)
-def get_ready(query:str,chunksize=None,k=None):
+def get_ready(query:str,chunksize=None,k=None,use_abstract=False):
     
     with open(CONFIG_PATH, encoding='utf8') as f:
         config = pytoml.load(f)
@@ -124,6 +124,9 @@ def get_ready(query:str,chunksize=None,k=None):
     except:
         pass
 
+
+    if use_abstract:
+        workdir = workdir + '_ab'
     if query == 'annotation':
         if not chunksize or not k:
             raise ValueError('chunksize or k not provided')
@@ -182,9 +185,11 @@ def update_repo_info():
             pmc_success = repo_info['pmc_success_d']
             scihub_success = repo_info['scihub_success_d']
             failed_download = repo_info['failed_download']
+            abstract_success = repo_info['abstract_success']
+            failed_abstract = repo_info['failed_abstract']
 
             number_of_upload = number_of_pdf-scihub_success
-            return keywords, retmax, search_len, import_len, failed_pmid_len, pmc_success, scihub_success, number_of_pdf, failed_download, number_of_upload 
+            return keywords, retmax, search_len, import_len, failed_pmid_len, pmc_success, scihub_success, number_of_pdf, failed_download, number_of_upload, abstract_success, failed_abstract, number_of_pdf
         else:
             return None,None,None,None,None,None,None,None,None,number_of_pdf
     else:
@@ -223,15 +228,18 @@ def delete_articles_repo():
     repodir, workdir, _ = get_ready('repo_work')
     if os.path.exists(repodir):
         shutil.rmtree(repodir)
+        shutil.rmtree(repodir + '_ab')
+
     if os.path.exists(workdir):
         shutil.rmtree(workdir)
+        shutil.rmtree(workdir + '_ab')
 
     return gr.Textbox(label="文献库概况",lines =3,
                       value = '文献库和相关数据库已删除',
                       visible = True)
 
 def update_repo():
-    keys, retmax, search_len, import_len, _, pmc_success, scihub_success, pdflen, failed, pdflen = update_repo_info()
+    keys, retmax, search_len, import_len, _, pmc_success, scihub_success, pdflen, failed, abstract_success, failed_abstract, pdflen = update_repo_info()
     newinfo = ""
     if keys == None:
         newinfo += '无关键词搜索相关信息\n'
@@ -249,6 +257,8 @@ def update_repo():
         newinfo += f'成功获取PMC全文数量: {pmc_success}\n'
         newinfo += f'成功获取SciHub全文数量: {scihub_success}\n'
         newinfo += f"下载失败的ID: {failed}\n"
+        newinfo += f"成功获取摘要的数量: {abstract_success}\n"
+        newinfo += f"获取摘要失败的数量: {failed_abstract}\n"
         newinfo += f'上传的PDF数量: {pdflen}\n'
    
     return gr.Textbox(label="文献库概况",lines =1,
@@ -259,26 +269,35 @@ def update_database_info():
     with open(CONFIG_PATH, encoding='utf8') as f:
         config = pytoml.load(f)
     workdir = config['feature_store']['work_dir']
-    chunkdirs = glob.glob(os.path.join(workdir, 'chunksize_*'))
-    chunkdirs.sort()
-    list_of_chunksize = [int(chunkdir.split('_')[-1]) for chunkdir in chunkdirs]
-    # print(list_of_chunksize)
-    jsonobj = {}
-    for chunkdir in chunkdirs:
-        k_dir = glob.glob(os.path.join(chunkdir, 'cluster_features','cluster_features_*'))
-        k_dir.sort()
-        list_of_k = [int(k.split('_')[-1]) for k in k_dir]
-        jsonobj[int(chunkdir.split('_')[-1])] = list_of_k
-        
+    abworkdir = workdir + '_ab' 
+    options = []
+    total_json_obj = {}
+    for dir in [workdir,abworkdir]:
+        tag = 'Full Text' if '_ab' not in dir else 'Abstract'
 
-    new_options = [f"chunksize:{chunksize}, k:{k}" for chunksize in list_of_chunksize for k in jsonobj[chunksize]]
+        chunkdirs = glob.glob(os.path.join(dir, 'chunksize_*'))
+        chunkdirs.sort()
+        list_of_chunksize = [int(chunkdir.split('_')[-1]) for chunkdir in chunkdirs]
+        # print(list_of_chunksize)
+        jsonobj = {}
+        for chunkdir in chunkdirs:
+            k_dir = glob.glob(os.path.join(chunkdir, 'cluster_features','cluster_features_*'))
+            k_dir.sort()
+            list_of_k = [int(k.split('_')[-1]) for k in k_dir]
+            jsonobj[int(chunkdir.split('_')[-1])] = list_of_k
+        
+        total_json_obj[dir] = jsonobj
+        newoptions = [f"{tag}, chunksize:{chunksize}, k:{k}" for chunksize in list_of_chunksize for k in jsonobj[chunksize]]
+        options.extend(newoptions)
     
-    return new_options, jsonobj
+    return options, total_json_obj
 
 @spaces.GPU(duration=120)
 def generate_database(chunksize:int,nclusters:str|list[str]):
     # 在这里运行生成数据库的函数
     repodir, workdir, _ = get_ready('repo_work')
+    abrepodir = repodir + '_ab'
+    abworkdir = workdir + '_ab'
     if not os.path.exists(repodir):
         return gr.Textbox(label="数据库已生成",value = '请先生成文献库',visible = True)
     nclusters = [int(i) for i in nclusters]
@@ -295,12 +314,17 @@ def generate_database(chunksize:int,nclusters:str|list[str]):
                             chunk_size=chunksize,
                             n_clusters=nclusters,
                            config_path=CONFIG_PATH)
+    file_opr = FileOperation()
 
     # walk all files in repo dir
-    file_opr = FileOperation()
     files = file_opr.scan_dir(repo_dir=repodir)
     fs_init.initialize(files=files, work_dir=workdir,file_opr=file_opr)
     file_opr.summarize(files)
+
+    files = file_opr.scan_dir(repo_dir=abrepodir)
+    fs_init.initialize(files=files, work_dir=abworkdir,file_opr=file_opr)
+    file_opr.summarize(files)
+
     del fs_init
     cache.pop('default')
     texts, _ = update_database_info()
@@ -310,6 +334,7 @@ def delete_database():
     _, workdir, _ = get_ready('repo_work')
     if os.path.exists(workdir):
         shutil.rmtree(workdir)
+        shutil.rmtree(workdir+'_ab')
     return  gr.Textbox(label="数据库概况",lines =3,value = '数据库已删除',visible = True)
 
 def update_database_textbox():
@@ -329,7 +354,7 @@ def update_ncluster_dropdown(chunksize:int):
     return gr.Dropdown(choices= nclusters)
 
 # @spaces.GPU(duration=120)
-def annotation(n,chunksize:int,nclusters:int,remote_ornot:bool):
+def annotation(n,chunksize:int,nclusters:int,remote_ornot:bool,use_abstract:bool):
     '''
     use llm to annotate cluster
     n: percentage of clusters to annotate
@@ -340,7 +365,7 @@ def annotation(n,chunksize:int,nclusters:int,remote_ornot:bool):
     else:
         backend = 'local'
 
-    clusterdir, samples, assistant, theme = get_ready('annotation',chunksize,nclusters)
+    clusterdir, samples, assistant, theme = get_ready('annotation',chunksize,nclusters,use_abstract)
     new_obj_list = []
     n = round(n * len(samples.keys()))
     for cluster_no in random.sample(samples.keys(), n):
@@ -369,14 +394,14 @@ def annotation(n,chunksize:int,nclusters:int,remote_ornot:bool):
     return '\n\n'.join([obj['annotation'] for obj in new_obj_list])
 
 # @spaces.GPU(duration=120)
-def inspiration(annotation:str,chunksize:int,nclusters:int,remote_ornot:bool):
+def inspiration(annotation:str,chunksize:int,nclusters:int,remote_ornot:bool,use_abstract:bool):
     query = 'inspiration'
     if remote_ornot:
         backend = 'remote'
     else:
         backend = 'local'
         
-    clusterdir, annoresult, assistant, theme = get_ready('inspiration',chunksize,nclusters)
+    clusterdir, annoresult, assistant, theme = get_ready('inspiration',chunksize,nclusters,use_abstract)
     new_obj_list = []
 
     if annotation is not None: # if the user wants to get inspiration from specific clusters only  
@@ -418,13 +443,13 @@ def getpmcurls(references):
     return urls
     
 @spaces.GPU(duration=120)
-def summarize_text(query,chunksize:int,remote_ornot:bool):
+def summarize_text(query,chunksize:int,remote_ornot:bool,use_abstract:bool):
     if remote_ornot:
         backend = 'remote'
     else:
         backend = 'local'
         
-    assistant,_ = get_ready('summarize',chunksize=chunksize,k=None)
+    assistant,_ = get_ready('summarize',chunksize=chunksize,k=None,use_abstract=use_abstract)
     code, reply, references = assistant.generate(query=query,
                                                 history=[],
                                                 groupname='',backend = backend)
@@ -611,6 +636,7 @@ def main_interface():
             with gr.Accordion("聚类标注相关参数", open=True):
                 with gr.Row():
                     update_options = gr.Button("更新数据库情况", scale=0)
+                    use_abstract = gr.Checkbox(label="是否仅使用摘要",scale=0)
                     chunksize = gr.Dropdown([], label="选择块大小", scale=0)
                     nclusters = gr.Dropdown([], label="选择聚类数", scale=0)
                     ntoread = gr.Slider(
@@ -644,15 +670,15 @@ def main_interface():
                              outputs= [nclusters])
             
             annotation_button.click(annotation, 
-                                    inputs = [ntoread, chunksize, nclusters,remote_ornot],
+                                    inputs = [ntoread, chunksize, nclusters,remote_ornot,use_abstract],
                                     outputs=[annotation_output])
             
             inspiration_button.click(inspiration, 
-                                     inputs= [annotation_output, chunksize, nclusters,remote_ornot],
+                                     inputs= [annotation_output, chunksize, nclusters,remote_ornot,use_abstract],
                                      outputs=[inspiration_output])
             
             write_button.click(summarize_text,
-                                inputs=[query, chunksize,remote_ornot],
+                                inputs=[query, chunksize,remote_ornot,use_abstract],
                                 outputs =[output_text,output_references])
 
     demo.launch(share=False, server_name='0.0.0.0', debug=True,show_error=True,allowed_paths=['img_0.jpg']) 
