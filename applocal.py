@@ -188,7 +188,7 @@ def update_repo_info():
             failed_abstract = repo_info['failed_abstract']
 
             number_of_upload = number_of_pdf-scihub_success
-            return keywords, retmax, search_len, import_len, failed_pmid_len, pmc_success, scihub_success, number_of_pdf, failed_download, number_of_upload, abstract_success, failed_abstract, number_of_pdf
+            return keywords, retmax, search_len, import_len, failed_pmid_len, pmc_success, scihub_success, failed_download, abstract_success, failed_abstract, number_of_upload
         else:
             return None,None,None,None,None,None,None,None,None,number_of_pdf
     else:
@@ -237,27 +237,29 @@ def delete_articles_repo():
                       visible = True)
 
 def update_repo():
-    keys, retmax, search_len, import_len, _, pmc_success, scihub_success, pdflen, failed, abstract_success, failed_abstract, pdflen = update_repo_info()
+    #  keywords, retmax, search_len, import_len, failed_pmid_len, pmc_success, scihub_success, failed_download, abstract_success, failed_abstract, number_of_upload
+    #  None,None,None,None,None,None,None,None,None,number_of_pdf
+    keys, retmax, search_len, import_len, _, pmc_success, scihub_success, failed, abstract_success, failed_abstract, pdfuplo = update_repo_info()
     newinfo = ""
     if keys == None:
         newinfo += '无关键词搜索相关信息\n'
         newinfo += '无导入的PMID\n'
-        if pdflen:
-            newinfo += f'上传的PDF数量: {pdflen}\n'
+        if pdfuplo:
+            newinfo += f'上传的PDF数量: {pdfuplo}\n'
         else:
             newinfo += '无上传的PDF\n'
     else:
         newinfo += f'关键词搜索:'
-        newinfo += f'   关键词: {keys}\n'
-        newinfo += f'   搜索上限: {retmax}\n'
-        newinfo += f'   搜索到的PMID数量: {search_len}\n'
+        newinfo += f'       关键词: {keys}\n'
+        newinfo += f'       搜索上限: {retmax}\n'
+        newinfo += f'       搜索到的PMID数量: {search_len}\n'
         newinfo += f'导入的PMID数量: {import_len}\n'
-        newinfo += f'成功获取PMC全文数量: {pmc_success}\n'
-        newinfo += f'成功获取SciHub全文数量: {scihub_success}\n'
-        newinfo += f"下载失败的ID: {failed}\n"
-        newinfo += f"成功获取摘要的数量: {abstract_success}\n"
-        newinfo += f"获取摘要失败的数量: {failed_abstract}\n"
-        newinfo += f'上传的PDF数量: {pdflen}\n'
+        newinfo += f'       成功获取PMC全文数量: {pmc_success}\n'
+        newinfo += f'       成功获取SciHub全文数量: {scihub_success}\n'
+        newinfo += f"       下载失败的ID: {failed}\n"
+        newinfo += f"       成功获取摘要的数量: {abstract_success}\n"
+        newinfo += f"       获取摘要失败的数量: {failed_abstract}\n"
+        newinfo += f'上传的PDF数量: {pdfuplo}\n'
    
     return gr.Textbox(label="文献库概况",lines =1,
                       value = newinfo,
@@ -271,7 +273,7 @@ def update_database_info():
     options = []
     total_json_obj = {}
     for dir in [workdir,abworkdir]:
-        tag = 'Full Text' if '_ab' not in dir else 'Abstract'
+        tag = 'FullText' if '_ab' not in dir else 'Abstract'
 
         chunkdirs = glob.glob(os.path.join(dir, 'chunksize_*'))
         chunkdirs.sort()
@@ -284,7 +286,7 @@ def update_database_info():
             list_of_k = [int(k.split('_')[-1]) for k in k_dir]
             jsonobj[int(chunkdir.split('_')[-1])] = list_of_k
         
-        total_json_obj[dir] = jsonobj
+        total_json_obj[tag] = jsonobj
         newoptions = [f"{tag}, chunksize:{chunksize}, k:{k}" for chunksize in list_of_chunksize for k in jsonobj[chunksize]]
         options.extend(newoptions)
     
@@ -342,13 +344,20 @@ def update_database_textbox():
     else:
         return gr.Textbox(label="数据库概况",value = '\n'.join(texts),visible = True)
 
-def update_chunksize_dropdown():
+def update_chunksize_dropdown(use_abstract):
     _, jsonobj = update_database_info()
-    return gr.Dropdown(choices= jsonobj.keys())
+    if use_abstract:
+        choices = jsonobj['Abstract'].keys()
+    else:
+        choices = jsonobj['FullText'].keys()
+    return gr.Dropdown(choices= choices)
 
-def update_ncluster_dropdown(chunksize:int):
+def update_ncluster_dropdown(chunksize:int,use_abstract:bool):
     _, jsonobj = update_database_info()
-    nclusters = jsonobj[chunksize]
+    if use_abstract:
+        nclusters = jsonobj['Abstract'][chunksize]
+    else:
+        nclusters = jsonobj['FullText'][chunksize]
     return gr.Dropdown(choices= nclusters)
 
 # @spaces.GPU(duration=360)
@@ -661,10 +670,11 @@ def main_interface():
             output_references = gr.Markdown(label="参考文献")
             
             update_options.click(update_chunksize_dropdown,
+                                 inputs=[use_abstract],
                                 outputs=[chunksize])
             
             chunksize.change(update_ncluster_dropdown, 
-                             inputs=[chunksize],
+                             inputs=[chunksize,use_abstract],
                              outputs= [nclusters])
             
             annotation_button.click(annotation, 

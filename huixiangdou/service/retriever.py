@@ -40,7 +40,7 @@ class Retriever:
                 search_type='similarity',
                 search_kwargs={
                     'score_threshold': 0.15,
-                    'k': 5
+                    'k': 10
                 })
 
         self.reordering = LongContextReorder()
