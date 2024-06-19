@@ -82,7 +82,7 @@ def udate_model_dropdown(remote_company):
         'kimi': ['moonshot-v1-128k'],
         'deepseek': ['deepseek-chat'],
         'zhipuai': ['glm-4'],
-        'gpt': ['gpt-4-32k-0613','gpt-3.5-turbo']
+        'gpt': ['gpt-4-32k-0613','gpt-3.5-turbo','gpt-4']
     }
     return gr.Dropdown(choices= model_choices[remote_company])
 
