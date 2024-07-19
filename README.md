@@ -171,6 +171,7 @@ python3 app.py # 如果不打算用本地/root/models储存的模型 这是hf的
    - 比方说用来找某个实验方法用多大浓度的试剂，和总结某研究领域的前沿进展所用到的chunksize应该是不一样的吧🤔
    - 后者的大小其实取决于前者叭🤔
 3. 表格数据利用
+4. 改用 chroma 把聚类结果存储进向量库
      
 ## 感谢
 1. [茴香豆](https://github.com/InternLM/HuixiangDou)
