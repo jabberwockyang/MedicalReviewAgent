@@ -178,4 +178,4 @@ python3 app.py # 如果不打算用本地/root/models储存的模型 这是hf的
 2. [E-utilities](https://www.ncbi.nlm.nih.gov/books/NBK25499/)
 3. [Ragflow](https://github.com/infiniflow/ragflow/blob/main/README_zh.md)
 4. [Advanced RAG pipeline](https://medium.aiplanet.com/evaluating-naive-rag-and-advanced-rag-pipeline-using-langchain-v-0-1-0-and-ragas-17d24e74e5cf)
-   
+5. [MinerU](https://github.com/opendatalab/MinerU?tab=readme-ov-file#Magic-PDF)
