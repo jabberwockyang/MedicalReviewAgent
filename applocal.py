@@ -14,7 +14,7 @@ import pytoml
 from loguru import logger
 # import spaces
 
-from huixiangdou.service import Worker, llm_serve, ArticleRetrieval, CacheRetriever, FeatureStore, FileOperation
+from huixiangdou.service import Worker, llm_serve, ArticleRetrieval, CacheRetriever, FeatureStore, FileOperation, get_available_models
 
 class PARAM_CODE(Enum):
     """Parameter code."""
@@ -33,11 +33,10 @@ def parse_args():
                         type=str,
                         default='repodir',
                         help='Repository directory.')
-    parser.add_argument(
-        '--config_path',
-        default='config.ini',
-        type=str,
-        help='Worker configuration path. Default value is config.ini')
+    parser.add_argument('--config_path',
+                        default='config.ini',
+                        type=str,
+                        help='Worker configuration path. Default value is config.ini')
     parser.add_argument('--standalone',
                         action='store_true',
                         default=True,
@@ -49,33 +48,6 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def update_remote_buttons(remote):
-    if remote:
-        return [
-                gr.Markdown("[如何配置API]('https://github.com/jabberwockyang/MedicalReviewAgent/blob/main/README.md')",
-                            visible=True),
-                gr.Dropdown(["kimi", "deepseek", "zhipuai",'gpt'],
-                                                label="选择大模型提供商",
-                                                interactive=True,visible=True),
-                gr.Textbox(label="您的API",lines = 1,
-                        interactive=True,visible=True),
-                gr.Textbox(label="base url",lines = 1,
-                        interactive=True,visible=True),
-                gr.Dropdown([],label="选择模型",
-                            interactive=True,visible=True)
-        ]
-    else:
-        return [
-                gr.Markdown("[如何配置API]('https://github.com/jabberwockyang/MedicalReviewAgent/blob/main/README.md')",
-                            visible=False),
-                gr.Dropdown(["kimi", "deepseek", "zhipuai",'gpt'],
-                                                label="选择大模型提供商",
-                                                interactive=False,visible=False),
-                gr.Textbox(label="您的API",lines = 1,
-                        interactive=False,visible=False),
-                gr.Dropdown([],label="选择模型",
-                            interactive=False,visible=False)
-        ]
 
 def udate_model_dropdown(remote_company):
     model_choices = {
@@ -495,16 +467,14 @@ def main_interface():
 
             remote_ornot = gr.Checkbox(label="是否使用远程大模型")
             with gr.Accordion("API配置", open=True):
-                apimd = gr.Markdown("[如何配置API]('https://github.com/jabberwockyang/MedicalReviewAgent/blob/main/README.md')",visible=False)
+                gr.Markdown("[如何配置API]('https://github.com/jabberwockyang/MedicalReviewAgent/blob/main/README.md')",visible=True)
                 remote_company = gr.Dropdown(["kimi", "deepseek", "zhipuai",'gpt'],
-                                            label="选择大模型提供商",interactive=False,visible=False)
-                api = gr.Textbox(label="您的API",lines = 1,interactive=False,visible=False)
-                baseurl = gr.Textbox(label="base url",lines = 1,interactive=False,visible=False)
-                model = gr.Dropdown([],label="选择模型",interactive=False,visible=False)
-            
+                                            label="选择大模型提供商",interactive=True,visible=True)
+                api = gr.Textbox(label="您的API",lines = 1,interactive=True,visible=True)
+                baseurl = gr.Textbox(label="base url",lines = 1,interactive=True,visible=True)
+                model = gr.Dropdown([],label="选择模型",interactive=True,visible=True)
+                
             confirm_button = gr.Button("保存配置")
-
-            remote_ornot.change(update_remote_buttons, inputs=[remote_ornot],outputs=[apimd,remote_company,api,baseurl,model])
             remote_company.change(udate_model_dropdown, inputs=[remote_company],outputs=[model])
             confirm_button.click(update_remote_config, inputs=[remote_ornot,remote_company,api,baseurl,model],outputs=[confirm_button])
 

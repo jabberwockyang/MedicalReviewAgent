@@ -18,3 +18,4 @@ from .web_search import WebSearch  # noqa E401
 from .worker import Worker  # noqa E401
 from .cluster import Clusterer  
 from .findarticles import ArticleRetrieval
+from .test_api import get_available_models   

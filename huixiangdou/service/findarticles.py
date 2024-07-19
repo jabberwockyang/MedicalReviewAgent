@@ -166,7 +166,7 @@ class ArticleRetrieval:
         self.failed_abstract = []
         downloaded = os.listdir(self.repo_dir)
         downloaded_ab = os.listdir(self.repo_dir + '_ab')
-        for id in tqdm(self.pmc_ids, desc="Fetching full texts", unit="article"):
+        for id in tqdm(self.pmc_ids, desc="Fetching full texts in PMC", unit="article"):
             # check if file already downloaded
             if f"{id}.txt" in downloaded:
                 print(f"File already downloaded: {id}")
@@ -189,7 +189,7 @@ class ArticleRetrieval:
                 with open(os.path.join(self.repo_dir,f'{id}.txt'), 'w') as f:
                     f.write(full_text)
                 self.pmc_success += 1
-        for doi in tqdm(self.scihub_doi, desc="Fetching full texts", unit="article"):
+        for doi in tqdm(self.scihub_doi, desc="Fetching full texts in scihub", unit="article"):
             # check if file already downloaded
             if f"{doi.replace('/','_')}.pdf" in downloaded: 
                 print(f"File already downloaded: {doi}")
@@ -215,7 +215,7 @@ class ArticleRetrieval:
             response = requests.get(base_url, params=params)
             root = ET.fromstring(response.content)
             abstract = root.find('.//AbstractText')
-            if abstract is not None:
+            if abstract is not None and abstract.text is not None:
                 with open(os.path.join(self.repo_dir + '_ab',f'{pmid}.txt'), 'w') as f:
                     f.write(abstract.text)
                 self.abstract_success += 1

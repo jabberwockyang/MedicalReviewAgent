@@ -90,6 +90,7 @@ pip install -r requirements.txt
 cd /root && mkdir models
 cd /root/models
 # login required
+huggingface-cli login # interactive login
 huggingface-cli download Qwen/Qwen1.5-7B-Chat --local-dir /root/models/Qwen1.5-7B-Chat
 huggingface-cli download maidalun1020/bce-embedding-base_v1 --local-dir /root/models/bce-embedding-base_v1
 huggingface-cli download maidalun1020/bce-reranker-base_v1 --local-dir /root/models/bce-reranker-base_v1
@@ -98,7 +99,7 @@ huggingface-cli download maidalun1020/bce-reranker-base_v1 --local-dir /root/mod
 
    ```bash
 conda activate ReviewAgent
-cd MedicalReviewAgent
+cd /root/MedicalReviewAgent
 python3 applocal.py --model_downloaded True # 如果已经在/root/models下载了模型 这个参数会换一个配置文件,里面的modelpath是本地路径不是hf的仓库路径 自己显卡跑跑用这个
 python3 app.py # 如果不打算用本地/root/models储存的模型 这是hf的spaces的构建配置
    ```

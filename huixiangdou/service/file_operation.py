@@ -3,7 +3,6 @@ import hashlib
 import os
 import fitz
 import pandas as pd
-import textract
 from bs4 import BeautifulSoup
 from loguru import logger
 from deepdoc.parser import RAGFlowPdfParser
@@ -165,17 +164,7 @@ class FileOperation:
 
             elif file_type == 'pdf':
                 text,tbls = self.read_pdf(filepath)
-
-            elif file_type == 'excel':
-                text += self.read_excel(filepath)
-
-            elif file_type == 'word' or file_type == 'ppt':
-                # https://stackoverflow.com/questions/36001482/read-doc-file-with-python
-                # https://textract.readthedocs.io/en/latest/installation.html
-                text = textract.process(filepath).decode('utf8')
-                if file_type == 'ppt':
-                    text = text.replace('\n', ' ')
-
+                
             elif file_type == 'html':
                 with open(filepath) as f:
                     soup = BeautifulSoup(f.read(), 'html.parser')
